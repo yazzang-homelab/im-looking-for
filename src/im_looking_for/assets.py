@@ -1,11 +1,11 @@
-"""The two things Rummage downloads on first use, pinned and checksummed:
+"""The two things im-looking-for downloads on first use, pinned and checksummed:
 
 * llama.cpp's prebuilt ``llama-server`` for this computer (MIT), at the first build that runs EmbeddingGemma 2's
   text, vision and audio parts.
 * ggml-org's Q8_0 GGUF conversion of google/embeddinggemma-2 (Apache 2.0): the text model and the image/audio
   encoders. Never the F16 files: the model's activations overflow float16.
 
-Nothing is fetched unless asked (``rummage setup``), and a file only gets its final name once its SHA-256 matches.
+Nothing is fetched unless asked (``ilf setup``), and a file only gets its final name once its SHA-256 matches.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from pathlib import Path
 from . import paths
 
 LLAMA_TAG = "b11461"
-USER_AGENT = "Rummage/0.1 (on-device file search; python-urllib)"
+USER_AGENT = "im-looking-for/0.1 (on-device file search; python-urllib)"
 
 Progress = Callable[[str, int, int], None]
 
@@ -118,8 +118,8 @@ def server_executable_name() -> str:
 
 
 def find_server() -> Path | None:
-    """``RUMMAGE_LLAMA_SERVER`` if set, else the runtime ``setup`` installed. ``None`` when there is neither."""
-    explicit = os.environ.get("RUMMAGE_LLAMA_SERVER")
+    """``ILF_LLAMA_SERVER`` if set, else the runtime ``setup`` installed. ``None`` when there is neither."""
+    explicit = os.environ.get("ILF_LLAMA_SERVER")
     if explicit:
         return Path(explicit) if Path(explicit).is_file() else None
     root = paths.runtime_dir()
@@ -132,7 +132,7 @@ def find_server() -> Path | None:
 
 
 def model_path(asset: Asset) -> Path:
-    override = os.environ.get("RUMMAGE_MODEL_DIR")
+    override = os.environ.get("ILF_MODEL_DIR")
     folder = Path(override) if override else paths.models_dir()
     return folder / asset.name
 
@@ -220,6 +220,25 @@ def _check_members(names: list[str]) -> None:
     for name in names:
         if name.startswith(("/", "\\")) or ".." in Path(name).parts:
             raise RuntimeError(f"refusing an archive entry outside its folder: {name}")
+
+
+def install(backend: str | None = None, progress: Progress | None = None) -> dict:
+    """Everything ``ilf setup`` does: the llama.cpp build for ``backend`` (unless it's already there) and any missing
+    model file. Returns what was installed."""
+    backend = backend or default_backend()
+    done = {"backend": backend, "runtime": None, "models": []}
+    wanted = runtime_asset(backend).name
+    if installed_runtime() != wanted or find_server() is None:
+        install_runtime(backend, progress)
+        done["runtime"] = wanted
+    for asset in missing_models():
+        download(asset, model_path(asset), progress)
+        done["models"].append(asset.name)
+    return done
+
+
+def ready() -> bool:
+    return find_server() is not None and not missing_models()
 
 
 def installed_runtime() -> str | None:

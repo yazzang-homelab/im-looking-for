@@ -1,4 +1,4 @@
-"""llama.cpp's ``llama-server`` as a helper process, on a free loopback port, for as long as Rummage needs vectors.
+"""llama.cpp's ``llama-server`` as a helper process, on a free loopback port, for as long as im-looking-for needs vectors.
 
 It only ever listens on 127.0.0.1 and only ever reads the two pinned model files. With ``media=False`` it loads just
 the text model (~310 MB), which is all a search needs.
@@ -41,11 +41,11 @@ class LlamaServer:
                  gpu_layers: int = 99, startup_timeout: float = 180.0):
         server = assets.find_server()
         if server is None:
-            raise ServerUnavailable("llama.cpp isn't installed; run `rummage setup`")
+            raise ServerUnavailable("llama.cpp isn't installed; run `ilf setup`")
         missing = [m.name for m in assets.MODELS if (media or m is assets.TEXT_MODEL)
                    and not assets.model_path(m).is_file()]
         if missing:
-            raise ServerUnavailable(f"model files missing ({', '.join(missing)}); run `rummage setup`")
+            raise ServerUnavailable(f"model files missing ({', '.join(missing)}); run `ilf setup`")
         self.media = media
         self.port = _free_port()
         self.base = f"http://127.0.0.1:{self.port}"

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -29,6 +30,12 @@ class Result:
     loc: float
     loc_end: float | None
     snippet: str
+
+    def to_dict(self) -> dict:
+        """The documented JSON shape of a result (CLI ``--json``, the GUI's API and the MCP ``search`` tool)."""
+        return {"path": self.path, "name": Path(self.path).name, "kind": self.kind, "score": self.score,
+                "match": self.segment, "loc": self.loc, "loc_end": self.loc_end, "where": self.where(),
+                "snippet": self.snippet}
 
     def where(self) -> str:
         if self.segment in ("page", "page_image"):

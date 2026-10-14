@@ -3,7 +3,7 @@ import zipfile
 
 from PIL import Image
 
-from rummage import extract
+from im_looking_for import extract
 
 
 def test_chunks_cover_text_with_overlap_and_cut_at_boundaries():

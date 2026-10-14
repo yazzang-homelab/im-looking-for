@@ -2,7 +2,7 @@
 
 import sys
 
-from rummage.cli import main
+from im_looking_for.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())

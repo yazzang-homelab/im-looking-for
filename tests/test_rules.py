@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from rummage import rules
+from im_looking_for import rules
 
 
 def touch(path: Path, data: bytes = b"x") -> Path:

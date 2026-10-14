@@ -1,4 +1,4 @@
-"""Builds a folder of test files for trying Rummage and for `scripts/eval.py`.
+"""Builds a folder of test files for trying im-looking-for and for `scripts/eval.py`.
 
 Needs ffmpeg; LibreOffice (``soffice``) for the .docx/.pdf, espeak-ng for spoken audio, and network access for the
 Wikimedia Commons photos (their authors and licenses are on each file's page, listed in ``SOURCES.txt``).
@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-UA = "Rummage-testbed/0.1 (test data builder; python-urllib)"
+UA = "im-looking-for-testbed/0.1 (test data builder; python-urllib)"
 
 PHOTOS = {  # Wikimedia Commons file name -> local name
     "Dog_on_beach.jpg": "IMG_0412.jpg",

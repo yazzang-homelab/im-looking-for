@@ -1,6 +1,6 @@
 import subprocess
 
-from rummage import extract, media
+from im_looking_for import extract, media
 
 
 def make(args, path):

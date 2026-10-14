@@ -1,6 +1,6 @@
 """Measures ranking: each query names the file it should find; reports top-1, top-5 and MRR.
 
-    rummage add ./testbed && rummage index
+    ilf add ./testbed && ilf index
     python scripts/eval.py scripts/testbed_eval.json
 """
 
@@ -10,7 +10,7 @@ import json
 import sys
 from pathlib import Path
 
-from rummage.engine import Engine
+from im_looking_for.engine import Engine
 
 
 def main(cases_file: str) -> int:

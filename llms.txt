@@ -1,0 +1,21 @@
+# im-looking-for
+
+> Local, cross-platform search of a computer's files by their content (photos, PDFs and scans, documents, audio,
+> video) using EmbeddingGemma 2 via llama.cpp. Command `ilf`; MCP server `ilf mcp`; `--json` on every command.
+> Nothing leaves the computer.
+
+## For agents using it
+
+- [Agent guide](docs/agents.md): connecting over MCP, tools, JSON shapes, exit codes, how to read scores
+- [Agent skill](skills/im-looking-for/SKILL.md): step-by-step use of the `ilf` CLI
+- [README](README.md): install, the app, what files are read, limits
+
+## For agents changing it
+
+- [AGENTS.md](AGENTS.md): code layout, invariants, how to test
+
+## Optional
+
+- [한국어 README](README.ko.md)
+- [한국어 에이전트 가이드](docs/agents.ko.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)

@@ -30,7 +30,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
-      RUMMAGE_HOME: ${{ github.workspace }}/.rummage-home
+      ILF_HOME: ${{ github.workspace }}/.ilf-home
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,14 +39,14 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - uses: actions/cache@v4
         with:
-          path: .rummage-home/models
+          path: .ilf-home/models
           key: embeddinggemma-2-q8-bfcd298
-      - name: rummage setup (CPU build: hosted runners have no GPU)
-        run: rummage setup --backend ${{ runner.os == 'macOS' && 'metal' || 'cpu' }}
+      - name: "ilf setup (CPU build: hosted runners have no GPU)"
+        run: ilf setup --backend ${{ runner.os == 'macOS' && 'metal' || 'cpu' }}
       - name: integration test
         env:
-          RUMMAGE_INTEGRATION: "1"
-          RUMMAGE_REAL_HOME: ${{ github.workspace }}/.rummage-home
+          ILF_INTEGRATION: "1"
+          ILF_REAL_HOME: ${{ github.workspace }}/.ilf-home
         run: python -m pytest -q tests/test_integration.py
       - name: index and search a small folder
         shell: bash
@@ -59,12 +59,30 @@ jobs:
           picture.save("sample/circle.png")
           open("sample/lease.txt", "w", encoding="utf-8").write("임차인은 반려동물을 키울 수 없다. The tenant may not keep pets.")
           EOF
-          rummage add sample
-          rummage index
-          rummage search "a red circle" -n 1 | tee out1.txt
+          ilf add sample
+          ilf index
+          ilf search "a red circle" -n 1 | tee out1.txt
           grep -q circle.png out1.txt
-          rummage search "반려동물 규정" -n 1 | tee out2.txt
+          ilf search "반려동물 규정" -n 1 | tee out2.txt
           grep -q lease.txt out2.txt
+      - name: agent surfaces (bare-word search with --json, MCP over stdio)
+        shell: bash
+        run: |
+          ilf a red circle -n 1 --json > out3.json
+          python -c "import json; r = json.load(open('out3.json'))['results']; assert r[0]['name'] == 'circle.png', r"
+          python - <<'EOF'
+          import anyio, json, os, shutil
+          from mcp import Client, StdioServerParameters
+
+          async def main():
+              server = StdioServerParameters(command=shutil.which("ilf"), args=["mcp"], env=dict(os.environ))
+              async with Client(server) as client:
+                  result = await client.call_tool("search", {"query": "pets are not allowed", "limit": 1})
+                  found = json.loads(result.content[0].text)["results"]
+                  assert found[0]["name"] == "lease.txt", found
+
+          anyio.run(main)
+          EOF
       - if: failure()
         shell: bash
-        run: cat "$RUMMAGE_HOME/llama-server.log" || true
+        run: cat "$ILF_HOME/llama-server.log" || true

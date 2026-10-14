@@ -2,7 +2,7 @@ import hashlib
 
 import pytest
 
-from rummage import assets
+from im_looking_for import assets
 
 
 def test_every_host_has_a_default_runtime(monkeypatch):

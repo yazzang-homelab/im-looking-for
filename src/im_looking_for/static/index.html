@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>im-looking-for</title>
+<style>
+:root {
+  --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a; --text: #e8eaf0; --dim: #9aa2b1;
+  --faint: #6b7280; --accent: #ffb547; --accent-ink: #1b1300; --good: #4ade80; --bad: #f87171;
+  --radius: 14px; --shadow: 0 10px 40px rgba(0,0,0,.45);
+  --font: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #f6f5f2; --panel: #ffffff; --panel2: #f0eee9; --line: #e2dfd8; --text: #1d1b16; --dim: #5d5a52;
+    --faint: #8d8a82; --accent: #e8890c; --accent-ink: #fff; --shadow: 0 10px 40px rgba(40,30,10,.12); }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { border: 1px solid var(--line); background: var(--panel2); border-radius: 10px; padding: 8px 14px; }
+.btn:hover { border-color: var(--faint); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.quiet { background: transparent; border-color: transparent; color: var(--dim); }
+.btn.quiet:hover { color: var(--text); background: var(--panel2); }
+.btn:disabled { opacity: .45; cursor: default; }
+kbd { font: 12px/1 ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  padding: 2px 5px; color: var(--dim); }
+code, pre { font: 13px/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace; }
+
+/* top */
+header { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1280px; margin: 0 auto; padding: 18px 24px 12px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; align-items: center; gap: 12px; }
+.ask { flex: 1; display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1.5px solid var(--line);
+  border-radius: 16px; padding: 4px 6px 4px 18px; transition: border-color .15s, box-shadow .15s; }
+.ask:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
+.ask .lead { color: var(--accent); font-weight: 650; white-space: nowrap; font-size: 18px; }
+.ask input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 18px var(--font);
+  padding: 12px 0; }
+.ask input::placeholder { color: var(--faint); }
+.spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent);
+  animation: spin .8s linear infinite; visibility: hidden; }
+.spin.on { visibility: visible; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 12px; color: var(--dim);
+  font-size: 13.5px; }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.pill { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+  background: var(--panel); color: var(--dim); font-size: 13px; white-space: nowrap; }
+.pill:hover { color: var(--text); border-color: var(--faint); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+.dot.busy { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.dot.off { background: var(--faint); }
+@keyframes pulse { 50% { opacity: .35; } }
+.mini { height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.mini > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+
+/* results */
+main { max-width: 1280px; margin: 0 auto; padding: 18px 24px 80px; display: grid; grid-template-columns: 1fr; gap: 20px; }
+main.with-preview { grid-template-columns: 1fr 380px; }
+.meta { color: var(--faint); font-size: 13px; margin: 2px 0 12px; min-height: 20px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1.5px solid var(--line); border-radius: var(--radius); overflow: hidden; cursor: pointer;
+  display: flex; flex-direction: column; transition: transform .12s, border-color .12s; text-align: left; padding: 0; }
+.card.weak { opacity: .62; }
+.card.weak:hover, .card.weak.sel { opacity: 1; }
+.card:hover { transform: translateY(-2px); border-color: var(--faint); }
+.card.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.thumb { aspect-ratio: 4/3; background: var(--panel2); display: grid; place-items: center; overflow: hidden; position: relative; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb .glyph { font-size: 38px; opacity: .8; }
+.thumb .text { width: 100%; overflow-wrap: anywhere; padding: 36px 14px 14px; font-size: 13px; color: var(--dim); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical; overflow: hidden; align-self: start; }
+.badge { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.62); color: #fff; font-size: 11.5px; border-radius: 6px;
+  padding: 2px 7px; font-weight: 600; letter-spacing: .02em; }
+.rank { position: absolute; right: 8px; top: 8px; background: var(--accent); color: var(--accent-ink); font-size: 11.5px;
+  border-radius: 6px; padding: 2px 7px; font-weight: 700; }
+.cap { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+.cap .name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cap .sub { display: flex; justify-content: space-between; gap: 8px; color: var(--faint); font-size: 12px; }
+.score { height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.score > i { display: block; height: 100%; background: var(--accent); }
+mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* preview */
+aside.preview { position: sticky; top: 150px; align-self: start; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; display: none; max-height: calc(100vh - 170px); overflow-y: auto; }
+main.with-preview aside.preview { display: block; }
+.preview .big { background: var(--panel2); display: grid; place-items: center; min-height: 160px; }
+.preview .big img { width: 100%; max-height: 420px; object-fit: contain; display: block; }
+.preview .body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.preview h2 { margin: 0; font-size: 17px; word-break: break-all; }
+.preview .path { color: var(--faint); font-size: 12.5px; word-break: break-all; }
+.preview .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.passage { background: var(--panel2); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; color: var(--dim);
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }
+.passage .loc { display: block; color: var(--faint); font-size: 11.5px; margin-bottom: 4px; }
+
+/* empty and hello */
+.empty { text-align: center; padding: 70px 20px; color: var(--dim); }
+.empty h1 { font-size: 30px; margin: 0 0 8px; color: var(--text); letter-spacing: -.01em; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+.examples button { border: 1px dashed var(--line); background: transparent; border-radius: 999px; padding: 7px 14px; color: var(--dim); }
+.examples button:hover { border-color: var(--accent); color: var(--text); }
+.keys { margin-top: 34px; color: var(--faint); font-size: 13px; display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+
+/* sheets */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 20; display: none; }
+.scrim.on { display: block; }
+.sheet { position: fixed; z-index: 21; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
+  display: none; flex-direction: column; }
+.sheet.on { display: flex; }
+.drawer { top: 0; right: 0; bottom: 0; width: min(480px, 100vw); border-radius: 0; }
+.modal { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(640px, 94vw); max-height: 88vh; border-radius: 18px; }
+.sheet .head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+.sheet .head h2 { margin: 0; font-size: 17px; }
+.sheet .content { padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; }
+.section h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+.folders { display: flex; flex-direction: column; gap: 6px; }
+.folder { display: flex; align-items: center; gap: 10px; background: var(--panel2); border-radius: 10px; padding: 8px 8px 8px 12px; }
+.folder span { flex: 1; word-break: break-all; font-size: 13.5px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--panel2); border-radius: 10px; padding: 10px 12px; }
+.stat b { display: block; font-size: 20px; }
+.stat small { color: var(--faint); }
+.progress { display: flex; flex-direction: column; gap: 6px; }
+.progress .track { height: 8px; background: var(--line); border-radius: 8px; overflow: hidden; }
+.progress .track > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+.progress small { color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+pre.snippet { background: var(--panel2); border-radius: 10px; padding: 12px; margin: 0; overflow-x: auto; color: var(--dim); }
+.note { color: var(--faint); font-size: 13px; }
+.err { color: var(--bad); font-size: 13.5px; word-break: break-word; }
+
+/* wizard */
+.steps { display: flex; gap: 8px; }
+.steps i { flex: 1; height: 4px; border-radius: 4px; background: var(--line); }
+.steps i.done { background: var(--accent); }
+.wizard h1 { font-size: 24px; margin: 4px 0 6px; }
+.wizard p { color: var(--dim); margin: 0; }
+.choice { display: flex; gap: 8px; flex-wrap: wrap; }
+.choice label { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.choice input { accent-color: var(--accent); }
+
+/* folder browser */
+.crumbs { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; font-size: 13.5px; }
+.crumbs button { border: 0; background: transparent; color: var(--dim); padding: 2px 4px; border-radius: 6px; }
+.crumbs button:hover { color: var(--text); background: var(--panel2); }
+.places { display: flex; gap: 6px; flex-wrap: wrap; }
+.list { border: 1px solid var(--line); border-radius: 12px; height: 320px; overflow-y: auto; }
+.list button { display: flex; width: 100%; gap: 10px; align-items: center; border: 0; background: transparent; padding: 8px 12px;
+  text-align: left; border-bottom: 1px solid var(--line); }
+.list button:hover, .list button:focus { background: var(--panel2); outline: 0; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.foot .chosen { font-size: 13px; color: var(--dim); word-break: break-all; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+  padding: 10px 16px; border-radius: 10px; z-index: 40; font-size: 14px; display: none; }
+.toast.on { display: block; }
+@media (max-width: 900px) { main.with-preview { grid-template-columns: 1fr; } aside.preview { position: static; max-height: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="row">
+      <form class="ask" id="ask" role="search">
+        <span class="lead" data-t="lead">I'm looking for</span>
+        <input id="q" autocomplete="off" spellcheck="false" autofocus data-ph="placeholder">
+        <span class="spin" id="spin"></span>
+        <button class="btn primary" data-t="search">Search</button>
+      </form>
+    </div>
+    <div class="row">
+      <div class="chips" id="chips"></div>
+      <button class="pill" id="pill" title="Library"><span class="dot" id="dot"></span><span id="pilltext">…</span></button>
+      <button class="btn quiet" id="lang" title="한국어 / English">한/EN</button>
+    </div>
+    <div class="mini" id="mini" hidden><i></i></div>
+  </div>
+</header>
+
+<main id="main">
+  <section>
+    <div class="meta" id="meta"></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="hello">
+      <h1 data-t="helloTitle">Describe it. We'll find it.</h1>
+      <div data-t="helloBody">Photos, PDFs, documents, voice memos and videos — searched by what's in them, on this computer.</div>
+      <div class="examples" id="examples"></div>
+      <div class="keys"><span><kbd>/</kbd> <span data-t="kSearch">search</span></span>
+        <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <span data-t="kMove">move</span></span>
+        <span><kbd>Enter</kbd> <span data-t="kOpen">open</span></span>
+        <span><kbd>Shift</kbd>+<kbd>Enter</kbd> <span data-t="kReveal">show in folder</span></span>
+        <span><kbd>Esc</kbd> <span data-t="kClose">close</span></span></div>
+    </div>
+  </section>
+  <aside class="preview" id="preview"></aside>
+</main>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="sheet drawer" id="library" role="dialog" aria-modal="true">
+  <div class="head"><h2 data-t="library">Library</h2><button class="btn quiet" data-close>✕</button></div>
+  <div class="content">
+    <div class="section"><h3 data-t="folders">Folders searched</h3>
+      <div class="folders" id="folderlist"></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="addfolder" data-t="addFolder">+ Add folder</button></div>
+    </div>
+    <div class="section"><h3 data-t="index">Index</h3>
+      <div class="stats" id="stats"></div>
+      <div class="progress" id="libprogress" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="reindex" data-t="update">Read new &amp; changed files</button>
+        <button class="btn" id="stopindex" data-t="stop" hidden>Stop</button>
+      </div>
+      <p class="note" data-t="indexNote">Unchanged files are skipped, so updating is quick. Searching works while it reads.</p>
+    </div>
+    <div class="section"><h3 data-t="agents">For AI agents</h3>
+      <p class="note" data-t="agentsNote">Let Claude, Codex, Cursor or any MCP client search these files. Add this to its MCP settings:</p>
+      <pre class="snippet" id="mcpsnippet"></pre>
+      <div class="row" style="margin-top:8px"><button class="btn" id="copymcp" data-t="copy">Copy</button></div>
+      <p class="note" data-t="cliNote">Or from a terminal or script:</p>
+      <pre class="snippet">ilf "invoice from march" --json
+ilf -k image a dog on the beach
+ilf status --json</pre>
+    </div>
+    <div class="section"><h3 data-t="about">About</h3>
+      <p class="note" id="about"></p>
+    </div>
+  </div>
+</div>
+
+<div class="sheet modal" id="browser" role="dialog" aria-modal="true">
+  <div class="head"><h2 data-t="chooseFolder">Choose a folder</h2><button class="btn quiet" data-close>✕</button></div>
+  <div class="content" style="gap:12px">
+    <div class="places" id="places"></div>
+    <div class="crumbs" id="crumbs"></div>
+    <div class="list" id="dirlist"></div>
+  </div>
+  <div class="foot"><span class="chosen" id="chosen"></span>
+    <button class="btn primary" id="pick" data-t="pick">Search this folder</button></div>
+</div>
+
+<div class="sheet modal wizard" id="wizard" role="dialog" aria-modal="true">
+  <div class="content" id="wizbody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const T = {
+  en: {
+    lead: "I'm looking for", placeholder: "a dog on the beach, the lease PDF, that voice memo about…", search: "Search",
+    one: {image: "Photo", pdf: "PDF", doc: "Document", audio: "Audio", video: "Video"},
+    all: "All", image: "Photos", pdf: "PDFs", doc: "Documents", audio: "Audio", video: "Video",
+    helloTitle: "Describe it. We'll find it.",
+    helloBody: "Photos, PDFs, documents, voice memos and videos — searched by what's in them, on this computer.",
+    kSearch: "search", kMove: "move", kOpen: "open", kReveal: "show in folder", kClose: "close",
+    examples: ["a red fruit on a table", "receipt", "slides with a sales chart", "someone talking about a meeting", "sunset over water"],
+    library: "Library", folders: "Folders searched", addFolder: "+ Add folder", index: "Index",
+    update: "Read new & changed files", stop: "Stop",
+    indexNote: "Unchanged files are skipped, so updating is quick. Searching works while it reads.",
+    agents: "For AI agents", agentsNote: "Let Claude, Codex, Cursor or any MCP client search these files. Add this to its MCP settings:",
+    copy: "Copy", copied: "Copied", cliNote: "Or from a terminal or script:", about: "About",
+    chooseFolder: "Choose a folder", pick: "Search this folder", noFolders: "No folders yet.",
+    remove: "Remove", files: "files", vectors: "passages", unreadable: "unreadable",
+    reading: (d, t) => `Reading ${d} of ${t}`, readingShort: (d, t) => `Reading ${d}/${t}`,
+    indexed: n => `${n} files`, notReady: "Set up", noIndex: "Add a folder",
+    results: (n, q, s) => `${n} results for “${q}” · ${s}s`, nothing: q => `Nothing found for “${q}”.`,
+    nothingHint: "Try describing what's in it rather than its name, or another language.",
+    open: "Open", reveal: "Show in folder", copyPath: "Copy path", pathCopied: "Path copied",
+    match: "Best match", denied: "No permission to look inside this folder.", emptyDir: "No sub-folders.",
+    doneIndex: (r, f) => `Read ${r} files` + (f ? `, ${f} unreadable` : ""),
+    wizTitle1: "Welcome to im-looking-for", wizBody1: "It searches your files by what's in them — on this computer, nothing is uploaded. First it needs the model: about 900 MB, downloaded once.",
+    wizBackend: "Run the model on", cpu: "CPU (works everywhere)", vulkan: "GPU via Vulkan", metal: "Apple GPU (Metal)",
+    download: "Download (~900 MB)", downloading: "Downloading", verifying: "Checking",
+    wizTitle2: "Which folders should it search?", wizBody2: "Pick the places your photos, documents and recordings live. You can change this any time.",
+    wizTitle3: "Reading your files", wizBody3: "The first pass takes a while — about a second per document page and a few seconds per photo on a CPU. You can already search what's read.",
+    next: "Next", start: "Start reading", startSearching: "Start searching", later: "Later",
+    error: "Something went wrong",
+  },
+  ko: {
+    lead: "찾고 있는 건", placeholder: "바닷가의 강아지, 임대차 계약서 PDF, 회의 얘기한 음성메모…", search: "찾기",
+    one: {image: "사진", pdf: "PDF", doc: "문서", audio: "오디오", video: "영상"},
+    all: "전체", image: "사진", pdf: "PDF", doc: "문서", audio: "오디오", video: "영상",
+    helloTitle: "설명하면 찾아드립니다.",
+    helloBody: "사진·PDF·문서·음성메모·영상을 파일 이름이 아니라 내용으로 찾습니다. 모든 처리는 이 컴퓨터 안에서만 합니다.",
+    kSearch: "검색", kMove: "이동", kOpen: "열기", kReveal: "폴더에서 보기", kClose: "닫기",
+    examples: ["탁자 위의 빨간 과일", "영수증", "매출 그래프가 있는 슬라이드", "회의 얘기하는 녹음", "물 위의 노을"],
+    library: "보관함", folders: "검색할 폴더", addFolder: "+ 폴더 추가", index: "색인",
+    update: "새 파일·바뀐 파일 읽기", stop: "멈추기",
+    indexNote: "바뀌지 않은 파일은 건너뛰므로 갱신은 빠릅니다. 읽는 동안에도 검색할 수 있습니다.",
+    agents: "AI 에이전트 연결", agentsNote: "Claude, Codex, Cursor 등 MCP 클라이언트가 이 파일들을 검색하게 하려면 MCP 설정에 다음을 넣으십시오.",
+    copy: "복사", copied: "복사했습니다", cliNote: "터미널이나 스크립트에서는:", about: "정보",
+    chooseFolder: "폴더 선택", pick: "이 폴더 검색하기", noFolders: "아직 폴더가 없습니다.",
+    remove: "빼기", files: "파일", vectors: "구간", unreadable: "읽기 실패",
+    reading: (d, t) => `${t}개 중 ${d}개 읽는 중`, readingShort: (d, t) => `읽는 중 ${d}/${t}`,
+    indexed: n => `파일 ${n}개`, notReady: "설정 필요", noIndex: "폴더 추가",
+    results: (n, q, s) => `“${q}” 결과 ${n}개 · ${s}초`, nothing: q => `“${q}”에 맞는 파일이 없습니다.`,
+    nothingHint: "파일 이름보다 안에 담긴 내용을 묘사해 보거나 다른 언어로 찾아보십시오.",
+    open: "열기", reveal: "폴더에서 보기", copyPath: "경로 복사", pathCopied: "경로를 복사했습니다",
+    match: "일치 구간", denied: "이 폴더를 열어볼 권한이 없습니다.", emptyDir: "하위 폴더가 없습니다.",
+    doneIndex: (r, f) => `${r}개 파일을 읽었습니다` + (f ? ` (${f}개 실패)` : ""),
+    wizTitle1: "im-looking-for에 오신 것을 환영합니다", wizBody1: "파일을 내용으로 찾아 줍니다. 모든 처리는 이 컴퓨터에서만 하며 아무것도 업로드하지 않습니다. 먼저 모델이 필요합니다(약 900MB, 한 번만 받습니다).",
+    wizBackend: "모델 실행 장치", cpu: "CPU (어디서나 동작)", vulkan: "GPU (Vulkan)", metal: "Apple GPU (Metal)",
+    download: "내려받기 (약 900MB)", downloading: "내려받는 중", verifying: "확인 중",
+    wizTitle2: "어느 폴더를 검색할까요?", wizBody2: "사진, 문서, 녹음이 있는 곳을 고르십시오. 언제든 바꿀 수 있습니다.",
+    wizTitle3: "파일을 읽고 있습니다", wizBody3: "처음 한 번은 시간이 걸립니다. CPU 기준으로 문서 한 쪽에 1초, 사진 한 장에 몇 초 정도입니다. 읽은 파일은 바로 검색할 수 있습니다.",
+    next: "다음", start: "읽기 시작", startSearching: "검색 시작하기", later: "나중에",
+    error: "문제가 생겼습니다",
+  },
+};
+let lang = localStorage.getItem("ilf.lang") || ((navigator.language || "en").toLowerCase().startsWith("ko") ? "ko" : "en");
+const t = (k, ...a) => { const v = T[lang][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
+
+const KINDS = ["all", "image", "pdf", "doc", "audio", "video"];
+const GLYPH = {image: "🖼", pdf: "📄", doc: "📝", audio: "🎙", video: "🎬"};
+let kind = "all", results = [], sel = -1, lastQuery = "", status = null, searchSeq = 0, wizStep = 0, wasIndexing = false;
+
+async function api(path, body) {
+  const opts = body === undefined ? {headers: {"X-ILF-Token": TOKEN}}
+    : {method: "POST", headers: {"X-ILF-Token": TOKEN, "Content-Type": "application/json"}, body: JSON.stringify(body)};
+  const r = await fetch(path, opts);
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+const thumbUrl = (r, size = 360) => `/thumb?path=${encodeURIComponent(r.path)}&loc=${r.loc ?? 0}&size=${size}&token=${TOKEN}`;
+const hasThumb = r => ["image", "pdf", "video"].includes(r.kind);
+function toast(msg) { const el = $("#toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove("on"), 1800); }
+const STOP = new Set("a an the of on in at to for and or with from by is are was that this my me".split(" "));
+function highlight(text, q) {
+  // whole words for Latin script; plain substrings for Korean/CJK, which have no spaces inside compounds
+  const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1 && !STOP.has(w))
+    .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .map(w => /^[\x00-\x7f]+$/.test(w) ? `\\b${w}\\b` : w);
+  if (!words.length) return esc(text);
+  const re = new RegExp(`(${words.join("|")})`, "gi");
+  return String(text ?? "").split(re).map((part, i) => i % 2 ? `<mark>${esc(part)}</mark>` : esc(part)).join("");
+}
+
+/* ---------- language ---------- */
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t));
+  document.querySelectorAll("[data-ph]").forEach(el => el.placeholder = t(el.dataset.ph));
+  $("#chips").innerHTML = KINDS.map(k => `<button class="chip" data-kind="${k}" aria-pressed="${k === kind}">${t(k)}</button>`).join("");
+  $("#examples").innerHTML = t("examples").map(e => `<button>${esc(e)}</button>`).join("");
+  renderStatus(); render(); if ($("#wizard").classList.contains("on")) renderWizard();
+}
+$("#lang").onclick = () => { lang = lang === "ko" ? "en" : "ko"; localStorage.setItem("ilf.lang", lang); applyLang(); };
+
+/* ---------- search ---------- */
+$("#chips").onclick = e => {
+  const k = e.target.dataset.kind; if (!k) return;
+  kind = k; document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.kind === kind));
+  if (lastQuery) run(lastQuery);
+};
+$("#examples").onclick = e => { if (e.target.tagName === "BUTTON") { $("#q").value = e.target.textContent; run(e.target.textContent); } };
+$("#ask").onsubmit = e => { e.preventDefault(); run($("#q").value.trim()); };
+let typing;
+$("#q").addEventListener("input", () => { clearTimeout(typing); const q = $("#q").value.trim(); if (q.length >= 3) typing = setTimeout(() => run(q), 650); });
+
+async function run(q) {
+  if (!q) return;
+  const seq = ++searchSeq, started = performance.now();
+  lastQuery = q; $("#spin").classList.add("on");
+  const kinds = kind === "all" ? "" : `&kind=${kind}`;
+  try {
+    const data = await api(`/api/search?q=${encodeURIComponent(q)}&n=60${kinds}`);
+    if (seq !== searchSeq) return;
+    results = data.results; sel = results.length ? 0 : -1;
+    const secs = ((performance.now() - started) / 1000).toFixed(1);
+    $("#meta").textContent = results.length ? t("results", results.length, q, secs) : "";
+    history.replaceState(null, "", `#q=${encodeURIComponent(q)}`);
+    render();
+  } catch (e) {
+    if (seq === searchSeq) { results = []; $("#meta").innerHTML = `<span class="err">${esc(t("error"))}: ${esc(e.message)}</span>`; render(); }
+  } finally { if (seq === searchSeq) $("#spin").classList.remove("on"); }
+}
+
+function render() {
+  $("#hello").hidden = !!lastQuery;
+  if (lastQuery && !results.length && !$("#meta").innerHTML.includes("err")) {
+    $("#grid").innerHTML = `<div class="empty" style="grid-column:1/-1"><h1 style="font-size:20px">${esc(t("nothing", lastQuery))}</h1><div>${esc(t("nothingHint"))}</div></div>`;
+  } else {
+    const top = results[0]?.score || 1;
+    $("#grid").innerHTML = results.map((r, i) => `
+      <button class="card${i === sel ? " sel" : ""}${r.score < top * 0.85 ? " weak" : ""}" data-i="${i}">
+        <div class="thumb">${hasThumb(r) ? `<img loading="lazy" src="${thumbUrl(r)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'glyph',textContent:'${GLYPH[r.kind]}'}))">`
+          : r.snippet ? `<div class="text">${highlight(r.snippet, lastQuery)}</div>` : `<span class="glyph">${GLYPH[r.kind] || "📁"}</span>`}
+          <span class="badge">${esc(t("one")[r.kind])}${r.where ? " · " + esc(r.where) : ""}</span>${i < 3 ? `<span class="rank">${i + 1}</span>` : ""}</div>
+        <div class="cap"><div class="name" title="${esc(r.path)}">${esc(r.name)}</div>
+          <div class="score"><i style="width:${Math.max(6, Math.min(100, r.score / top * 100)).toFixed(0)}%"></i></div>
+          <div class="sub"><span>${esc(parentName(r.path))}</span><span>${r.score.toFixed(2)}</span></div></div>
+      </button>`).join("");
+  }
+  renderPreview();
+}
+const parentName = p => { const parts = p.split(/[\\/]/); return parts.length > 1 ? parts[parts.length - 2] : ""; };
+$("#grid").onclick = e => { const c = e.target.closest(".card"); if (c) select(+c.dataset.i); };
+$("#grid").ondblclick = e => { const c = e.target.closest(".card"); if (c) openResult(+c.dataset.i); };
+
+function select(i) {
+  if (!results.length) return;
+  sel = Math.max(0, Math.min(results.length - 1, i));
+  document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", +c.dataset.i === sel));
+  document.querySelector(`.card[data-i="${sel}"]`)?.scrollIntoView({block: "nearest"});
+  renderPreview();
+}
+async function renderPreview() {
+  const r = results[sel];
+  $("#main").classList.toggle("with-preview", !!r);
+  if (!r) { $("#preview").innerHTML = ""; return; }
+  $("#preview").innerHTML = `
+    <div class="big">${hasThumb(r) ? `<img src="${thumbUrl(r, 900)}" alt="">` : `<span class="glyph" style="font-size:56px;padding:30px">${GLYPH[r.kind]}</span>`}</div>
+    <div class="body">
+      <div><h2>${esc(r.name)}</h2><div class="path">${esc(r.path)}</div></div>
+      <div class="actions">
+        <button class="btn primary" id="p-open">${esc(t("open"))}</button>
+        <button class="btn" id="p-reveal">${esc(t("reveal"))}</button>
+        <button class="btn quiet" id="p-copy">${esc(t("copyPath"))}</button>
+      </div>
+      <div id="p-passages">${r.snippet ? `<div class="passage"><span class="loc">${esc(t("match"))}${r.where ? " · " + esc(r.where) : ""}</span>${highlight(r.snippet, lastQuery)}</div>` : ""}</div>
+    </div>`;
+  $("#p-open").onclick = () => openResult(sel);
+  $("#p-reveal").onclick = () => openResult(sel, true);
+  $("#p-copy").onclick = () => navigator.clipboard.writeText(r.path).then(() => toast(t("pathCopied")));
+  if (r.kind === "doc" || r.kind === "pdf") {
+    try {
+      const d = await api(`/api/passages?path=${encodeURIComponent(r.path)}${r.loc != null ? "&loc=" + r.loc : ""}`);
+      const texts = d.passages.filter(p => p.text);
+      if (results[sel] === r && texts.length) $("#p-passages").innerHTML = texts.map(p =>
+        `<div class="passage"><span class="loc">${esc(t("match"))}${r.where ? " · " + esc(r.where) : ""}</span>${highlight(p.text, lastQuery)}</div>`).join("");
+    } catch {}
+  }
+}
+async function openResult(i, reveal = false) {
+  const r = results[i]; if (!r) return;
+  try { await api("/api/open", {path: r.path, reveal}); } catch (e) { toast(e.message); }
+}
+
+document.addEventListener("keydown", e => {
+  const open = document.querySelector(".sheet.on");
+  if (e.key === "Escape") { if (open) return closeSheets(); if (results.length) { results = []; sel = -1; lastQuery = ""; $("#meta").textContent = ""; $("#q").value = ""; render(); } return; }
+  if (open) return;
+  const inInput = document.activeElement === $("#q");
+  if (e.key === "/" && !inInput) { e.preventDefault(); $("#q").focus(); $("#q").select(); return; }
+  if (!results.length) return;
+  const cols = Math.max(1, Math.round($("#grid").clientWidth / ($(".card")?.offsetWidth + 14 || 224)));
+  const moves = {ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols};
+  if (e.key in moves && (!inInput || e.key === "ArrowDown")) { e.preventDefault(); if (inInput) $("#q").blur(); select(sel + moves[e.key]); }
+  else if (e.key === "Enter" && !inInput) { e.preventDefault(); openResult(sel, e.shiftKey); }
+});
+
+/* ---------- status, library ---------- */
+async function poll() {
+  try { status = await api("/api/status"); } catch { setTimeout(poll, 3000); return; }
+  renderStatus();
+  if (wasIndexing && !status.indexing && status.progress) toast(t("doneIndex", status.progress.read, status.progress.unreadable));
+  wasIndexing = status.indexing;
+  if ($("#wizard").classList.contains("on")) renderWizard();
+  setTimeout(poll, status.indexing || status.setup.running ? 700 : 4000);
+}
+function totalFiles(s) { return Object.values(s.index.files).reduce((a, b) => a + b, 0); }
+function renderStatus() {
+  if (!status) return;
+  const s = status, n = totalFiles(s), p = s.progress;
+  const dot = $("#dot"), mini = $("#mini");
+  dot.className = "dot" + (s.indexing || s.setup.running ? " busy" : !s.ready || !n ? " off" : "");
+  $("#pilltext").textContent = !s.ready ? t("notReady") : s.indexing && p ? t("readingShort", p.read + p.unchanged + p.unreadable, p.total)
+    : n ? t("indexed", n) : t("noIndex");
+  mini.hidden = !(s.indexing && p && p.total);
+  if (!mini.hidden) mini.firstElementChild.style.width = `${(p.read + p.unchanged + p.unreadable) / p.total * 100}%`;
+  if (!$("#library").classList.contains("on")) return;
+  $("#folderlist").innerHTML = s.folders.length ? s.folders.map(f => `<div class="folder"><span>📁 ${esc(f)}</span>
+      <button class="btn quiet" data-remove="${esc(f)}">${esc(t("remove"))}</button></div>`).join("")
+    : `<p class="note">${esc(t("noFolders"))}</p>`;
+  const kinds = Object.entries(s.index.files).map(([k, v]) => `${t(k)} ${v}`).join(" · ");
+  $("#stats").innerHTML = `<div class="stat"><b>${n}</b><small>${esc(t("files"))}</small></div>
+    <div class="stat"><b>${s.index.vectors}</b><small>${esc(t("vectors"))}</small></div>
+    <div class="stat"><b>${s.index.errors}</b><small>${esc(t("unreadable"))}</small></div>
+    <div class="note" style="grid-column:1/-1">${esc(kinds)}</div>`;
+  $("#libprogress").innerHTML = progressHtml(s);
+  $("#reindex").disabled = s.indexing || !s.ready || !s.folders.length;
+  $("#stopindex").hidden = !s.indexing;
+  $("#mcpsnippet").textContent = mcpJson(s);
+  $("#about").textContent = `im-looking-for ${s.version} · EmbeddingGemma 2 + llama.cpp (${s.runtime || "—"}) · ${s.data_dir}`;
+}
+function progressHtml(s) {
+  const p = s.progress;
+  if (s.index_error) return `<div class="err">${esc(s.index_error)}</div>`;
+  if (!s.indexing || !p) return "";
+  const done = p.read + p.unchanged + p.unreadable, share = p.total ? done / p.total * 100 : 0;
+  return `<div class="track"><i style="width:${share}%"></i></div><small>${esc(t("reading", done, p.total))} — ${esc(p.current || "")}</small>`;
+}
+const mcpJson = s => JSON.stringify({mcpServers: {"im-looking-for": {command: s.mcp_command[0], args: s.mcp_command.slice(1)}}}, null, 2);
+$("#copymcp").onclick = () => navigator.clipboard.writeText(mcpJson(status)).then(() => toast(t("copied")));
+$("#pill").onclick = () => status && !status.ready ? openWizard() : openSheet("library");
+$("#folderlist").onclick = async e => {
+  const f = e.target.dataset.remove; if (!f) return;
+  await api("/api/folders", {remove: f}); status = await api("/api/status"); renderStatus();
+};
+$("#reindex").onclick = async () => { await api("/api/index", {}); status = await api("/api/status"); renderStatus(); };
+$("#stopindex").onclick = () => api("/api/index", {stop: true});
+$("#addfolder").onclick = () => openBrowser(async path => { await api("/api/folders", {add: path}); await api("/api/index", {}); status = await api("/api/status"); openSheet("library"); });
+
+function openSheet(id) {
+  document.querySelectorAll(".sheet").forEach(s => s.classList.toggle("on", s.id === id));
+  $("#scrim").classList.add("on"); renderStatus();
+}
+function closeSheets() {
+  if ($("#wizard").classList.contains("on") && status && !status.ready) return;
+  document.querySelectorAll(".sheet").forEach(s => s.classList.remove("on")); $("#scrim").classList.remove("on"); $("#q").focus();
+}
+$("#scrim").onclick = closeSheets;
+document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
+
+/* ---------- folder browser ---------- */
+let browserDone = null, browsing = null;
+async function openBrowser(done, from = "") {
+  browserDone = done; const back = document.querySelector(".sheet.on")?.id;
+  browserDone.back = back; openSheet("browser"); await go(from);
+}
+async function go(path) {
+  let d;
+  try { d = await api(`/api/browse?path=${encodeURIComponent(path)}`); } catch (e) { toast(e.message); return; }
+  browsing = d.path;
+  $("#places").innerHTML = d.places.map(p => `<button class="chip" data-go="${esc(p.path)}">${esc(p.name)}</button>`).join("");
+  const sep = d.path.includes("\\") ? "\\" : "/";
+  const parts = d.path.split(/[\\/]/).filter(Boolean);
+  let acc = d.path.startsWith("/") ? "" : "";
+  $("#crumbs").innerHTML = (d.path.startsWith("/") ? `<button data-go="/">/</button>` : "") + parts.map((p, i) => {
+    acc = i === 0 && !d.path.startsWith("/") ? p + sep : acc + (acc.endsWith(sep) ? "" : sep) + p;
+    return `<button data-go="${esc(acc)}">${esc(p)}</button>${i < parts.length - 1 ? "<span>›</span>" : ""}`;
+  }).join("");
+  $("#dirlist").innerHTML = (d.parent ? `<button data-go="${esc(d.parent)}">⬑ ..</button>` : "") +
+    (d.denied ? `<p class="note" style="padding:12px">${esc(t("denied"))}</p>` : !d.folders.length ? `<p class="note" style="padding:12px">${esc(t("emptyDir"))}</p>` : "") +
+    d.folders.map(f => `<button data-go="${esc(d.path + (d.path.endsWith(sep) ? "" : sep) + f)}">📁 ${esc(f)}</button>`).join("");
+  $("#chosen").textContent = d.path;
+  $("#dirlist").scrollTop = 0;
+}
+$("#browser").addEventListener("click", e => { const g = e.target.closest("[data-go]"); if (g) go(g.dataset.go); });
+$("#pick").onclick = async () => {
+  const done = browserDone, back = done?.back;
+  try { await done(browsing); } catch (e) { toast(e.message); return; }
+  if (back === "wizard") openWizard(); else if (back !== "library") closeSheets();
+};
+
+/* ---------- first-run wizard ---------- */
+function openWizard() { openSheet("wizard"); renderWizard(); }
+function wizardStep(s) { return !s.ready ? 1 : !s.folders.length ? 2 : 3; }
+function renderWizard() {
+  const s = status; if (!s) return;
+  const step = Math.max(wizStep, wizardStep(s));
+  const bar = `<div class="steps">${[1, 2, 3].map(i => `<i class="${i <= step ? "done" : ""}"></i>`).join("")}</div>`;
+  let html = "";
+  if (step === 1) {
+    const sp = s.setup.progress, running = s.setup.running;
+    const pct = sp.total ? sp.have / sp.total * 100 : 0;
+    const chosen = s.backend || s.setup.default_backend;
+    html = `<h1>${esc(t("wizTitle1"))}</h1><p>${esc(t("wizBody1"))}</p>
+      ${s.backends.length > 1 ? `<div><div class="note" style="margin-bottom:6px">${esc(t("wizBackend"))}</div><div class="choice">${s.backends.map(b =>
+        `<label><input type="radio" name="backend" value="${b}" ${b === chosen ? "checked" : ""} ${running ? "disabled" : ""}> ${esc(t(b))}</label>`).join("")}</div></div>` : ""}
+      ${running ? `<div class="progress"><div class="track"><i style="width:${pct}%"></i></div>
+        <small>${esc(sp.have >= sp.total && sp.total ? t("verifying") : t("downloading"))} ${esc(sp.file || "")} — ${(sp.have / 1e6 || 0).toFixed(0)} / ${(sp.total / 1e6 || 0).toFixed(0)} MB</small></div>` : ""}
+      ${s.setup.error ? `<div class="err">${esc(s.setup.error)}</div>` : ""}
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" id="w-download" ${running ? "disabled" : ""}>${esc(t("download"))}</button></div>`;
+  } else if (step === 2) {
+    html = `<h1>${esc(t("wizTitle2"))}</h1><p>${esc(t("wizBody2"))}</p>
+      <div class="folders">${s.folders.map(f => `<div class="folder"><span>📁 ${esc(f)}</span></div>`).join("")}</div>
+      <div class="row" style="justify-content:space-between"><button class="btn" id="w-add">${esc(t("addFolder"))}</button>
+      <button class="btn primary" id="w-start" ${s.folders.length ? "" : "disabled"}>${esc(t("start"))}</button></div>`;
+  } else {
+    const p = s.progress, done = p ? p.read + p.unchanged + p.unreadable : 0;
+    html = `<h1>${esc(t("wizTitle3"))}</h1><p>${esc(t("wizBody3"))}</p>
+      <div class="progress"><div class="track"><i style="width:${p && p.total ? done / p.total * 100 : s.indexing ? 2 : 100}%"></i></div>
+      <small>${p ? esc(t("reading", done, p.total)) + " — " + esc(p.current || "") : ""}</small></div>
+      ${s.index_error ? `<div class="err">${esc(s.index_error)}</div>` : ""}
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" id="w-done">${esc(t("startSearching"))}</button></div>`;
+  }
+  $("#wizbody").innerHTML = bar + html;
+  $("#w-download") && ($("#w-download").onclick = async () => {
+    const b = document.querySelector('input[name="backend"]:checked')?.value;
+    await api("/api/setup", b ? {backend: b} : {}); status = await api("/api/status"); renderWizard();
+  });
+  $("#w-add") && ($("#w-add").onclick = () => openBrowser(async path => { await api("/api/folders", {add: path}); status = await api("/api/status"); }));
+  $("#w-start") && ($("#w-start").onclick = async () => { wizStep = 3; await api("/api/index", {}); status = await api("/api/status"); renderWizard(); });
+  $("#w-done") && ($("#w-done").onclick = () => { wizStep = 0; localStorage.setItem("ilf.welcomed", "1"); closeSheets(); });
+}
+
+/* ---------- start ---------- */
+(async () => {
+  applyLang();
+  try { status = await api("/api/status"); } catch {}
+  renderStatus();
+  if (status && (!status.ready || !status.folders.length || (!totalFiles(status) && !localStorage.getItem("ilf.welcomed")))) openWizard();
+  setTimeout(poll, 1500);
+  const m = location.hash.match(/^#q=(.*)$/);
+  if (m) { $("#q").value = decodeURIComponent(m[1]); run($("#q").value); }
+})();
+</script>
+</body>
+</html>

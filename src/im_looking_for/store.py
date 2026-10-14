@@ -186,6 +186,19 @@ class Store:
         self._cache, self._cache_generation = cache, generation
         return cache
 
+    def passages(self, path: str, loc: float | None = None, limit: int = 20) -> list[dict]:
+        """The text the index holds for a file: the segments at ``loc`` (a page, chunk or second), else the first
+        ``limit`` segments in reading order. Pictures and sound have no text; they come back with an empty one."""
+        sql = ("SELECT s.kind, s.modality, s.loc, s.loc_end, s.text FROM segments s JOIN files f ON f.id = s.file_id "
+               "WHERE f.path = ? AND s.kind != 'name'")
+        params: list = [path]
+        if loc is not None:
+            sql += " AND s.loc <= ? AND COALESCE(s.loc_end, s.loc) >= ?"
+            params += [loc, loc]
+        sql += " ORDER BY s.loc, s.id LIMIT ?"
+        params.append(limit)
+        return [dict(r) for r in self._rows(sql, params)]
+
     def segment(self, segment_id: int) -> sqlite3.Row:
         return self._row("SELECT * FROM segments WHERE id = ?", (segment_id,))
 

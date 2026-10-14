@@ -1,7 +1,7 @@
 name: Release
 
 # A tag like v0.1.0 builds a standalone folder for each OS (no Python needed) and the wheel, and attaches them to a
-# draft GitHub release. The model and llama.cpp aren't inside: `rummage setup` downloads them, pinned and checked.
+# draft GitHub release. The model and llama.cpp aren't inside: `ilf setup` downloads them, pinned and checked.
 on:
   push:
     tags: ["v*"]
@@ -29,25 +29,25 @@ jobs:
           python-version: "3.13"
       - run: python -m pip install . pyinstaller
       - run: >
-          pyinstaller --noconfirm --clean --name rummage --collect-data rummage
+          pyinstaller --noconfirm --clean --name ilf --collect-data im_looking_for
           --collect-binaries pypdfium2_raw --collect-data pypdfium2_raw --collect-binaries imageio_ffmpeg
-          scripts/rummage_entry.py
+          scripts/ilf_entry.py
       - name: smoke test the bundle
         shell: bash
         run: |
-          ./dist/rummage/rummage --version
-          RUMMAGE_HOME="$PWD/smoke-home" ./dist/rummage/rummage status
+          ./dist/ilf/ilf --version
+          ILF_HOME="$PWD/smoke-home" ./dist/ilf/ilf status
       - name: archive
         shell: bash
         run: |
-          cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/rummage/
+          cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/ilf/
           cd dist
-          if [[ "${{ runner.os }}" == "Windows" ]]; then 7z a "rummage-${{ matrix.name }}.zip" rummage; \
-          else tar -czf "rummage-${{ matrix.name }}.tar.gz" rummage; fi
+          if [[ "${{ runner.os }}" == "Windows" ]]; then 7z a "ilf-${{ matrix.name }}.zip" ilf; \
+          else tar -czf "ilf-${{ matrix.name }}.tar.gz" ilf; fi
       - uses: actions/upload-artifact@v4
         with:
-          name: rummage-${{ matrix.name }}
-          path: dist/rummage-${{ matrix.name }}.*
+          name: ilf-${{ matrix.name }}
+          path: dist/ilf-${{ matrix.name }}.*
 
   wheel:
     runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-"""Which files Rummage reads, and as what. Everything else is left alone.
+"""Which files im-looking-for reads, and as what. Everything else is left alone.
 
 It never reads hidden folders (``.ssh``, ``.git``, …), dependency and build folders, app bundles, keys, certificates,
 password stores or files that look like secrets, and never follows a link out of the folders it was given.

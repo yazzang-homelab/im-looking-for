@@ -46,7 +46,7 @@ class Engine:
         everything = not folders
         roots = [Path(f) for f in (folders or self.config.folders)]
         if not roots:
-            raise ValueError("no folders to index; add one with `rummage add <folder>`")
+            raise ValueError("no folders to index; add one with `ilf add <folder>`")
         excluded_folders, excluded_extensions = self.config.exclusions()
         return indexer.index(self.store, self.embedder(media=True), roots, extract.Options(),
                              excluded_folders, excluded_extensions, on_progress, stop,

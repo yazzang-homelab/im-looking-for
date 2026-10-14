@@ -1,8 +1,8 @@
-"""Where Rummage keeps its files: one data folder per user (``RUMMAGE_HOME`` overrides it).
+"""Where im-looking-for keeps its files: one data folder per user (``ILF_HOME`` overrides it).
 
-* Windows: ``%LOCALAPPDATA%\\Rummage``
-* macOS: ``~/Library/Application Support/Rummage``
-* Linux: ``$XDG_DATA_HOME/rummage`` (``~/.local/share/rummage``)
+* Windows: ``%LOCALAPPDATA%\\im-looking-for``
+* macOS: ``~/Library/Application Support/im-looking-for``
+* Linux: ``$XDG_DATA_HOME/im-looking-for`` (``~/.local/share/im-looking-for``)
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ import platformdirs
 
 
 def data_dir() -> Path:
-    override = os.environ.get("RUMMAGE_HOME")
-    folder = Path(override) if override else Path(platformdirs.user_data_dir("Rummage", appauthor=False))
+    override = os.environ.get("ILF_HOME")
+    folder = Path(override) if override else Path(platformdirs.user_data_dir("im-looking-for", appauthor=False))
     folder.mkdir(parents=True, exist_ok=True)
     return folder
 

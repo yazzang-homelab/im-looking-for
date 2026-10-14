@@ -1,5 +1,5 @@
-"""Runs the real llama-server and EmbeddingGemma 2 (after `rummage setup`). Opt in: RUMMAGE_INTEGRATION=1 and
-RUMMAGE_REAL_HOME pointing at the data folder that has them."""
+"""Runs the real llama-server and EmbeddingGemma 2 (after `ilf setup`). Opt in: ILF_INTEGRATION=1 and
+ILF_REAL_HOME pointing at the data folder that has them."""
 
 import os
 from pathlib import Path
@@ -9,23 +9,23 @@ import pytest
 from PIL import Image, ImageDraw
 
 pytestmark = pytest.mark.integration
-REAL_HOME = os.environ.get("RUMMAGE_REAL_HOME")
-if not (os.environ.get("RUMMAGE_INTEGRATION") == "1" and REAL_HOME):
-    pytest.skip("set RUMMAGE_INTEGRATION=1 and RUMMAGE_REAL_HOME", allow_module_level=True)
+REAL_HOME = os.environ.get("ILF_REAL_HOME")
+if not (os.environ.get("ILF_INTEGRATION") == "1" and REAL_HOME):
+    pytest.skip("set ILF_INTEGRATION=1 and ILF_REAL_HOME", allow_module_level=True)
 
 
 @pytest.fixture
 def real(monkeypatch, tmp_path):
-    monkeypatch.setenv("RUMMAGE_MODEL_DIR", str(Path(REAL_HOME) / "models"))
-    from rummage import assets
+    monkeypatch.setenv("ILF_MODEL_DIR", str(Path(REAL_HOME) / "models"))
+    from im_looking_for import assets
 
     server = next((Path(REAL_HOME) / "llama.cpp").rglob(assets.server_executable_name()))
-    monkeypatch.setenv("RUMMAGE_LLAMA_SERVER", str(server))
+    monkeypatch.setenv("ILF_LLAMA_SERVER", str(server))
 
 
 def test_text_and_picture_share_one_space(real, tmp_path):
-    from rummage.embed import ServerEmbedder, document_prompt, query_prompt
-    from rummage.server import LlamaServer
+    from im_looking_for.embed import ServerEmbedder, document_prompt, query_prompt
+    from im_looking_for.server import LlamaServer
 
     picture = Image.new("RGB", (512, 512), "white")
     ImageDraw.Draw(picture).ellipse((96, 96, 416, 416), fill="red")

@@ -6,7 +6,7 @@ import re
 import numpy as np
 import pytest
 
-from rummage.embed import DIM, normalize
+from im_looking_for.embed import DIM, normalize
 
 
 def _bucket(word: str) -> int:
@@ -43,5 +43,5 @@ def fake():
 
 @pytest.fixture(autouse=True)
 def home(tmp_path, monkeypatch):
-    monkeypatch.setenv("RUMMAGE_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("ILF_HOME", str(tmp_path / "home"))
     return tmp_path / "home"

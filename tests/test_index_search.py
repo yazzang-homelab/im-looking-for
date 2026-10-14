@@ -3,10 +3,10 @@ import time
 
 from PIL import Image
 
-from rummage import indexer
-from rummage.config import Config
-from rummage.engine import Engine
-from rummage.extract import Options
+from im_looking_for import indexer
+from im_looking_for.config import Config
+from im_looking_for.engine import Engine
+from im_looking_for.extract import Options
 
 
 def write(path, text):
