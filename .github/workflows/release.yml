@@ -1,0 +1,77 @@
+name: Release
+
+# A tag like v0.1.0 builds a standalone folder for each OS (no Python needed) and the wheel, and attaches them to a
+# draft GitHub release. The model and llama.cpp aren't inside: `rummage setup` downloads them, pinned and checked.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  standalone:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows-x64
+          - os: macos-latest
+            name: macos-arm64
+          - os: ubuntu-latest
+            name: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install . pyinstaller
+      - run: >
+          pyinstaller --noconfirm --clean --name rummage --collect-data rummage
+          --collect-binaries pypdfium2_raw --collect-data pypdfium2_raw --collect-binaries imageio_ffmpeg
+          scripts/rummage_entry.py
+      - name: smoke test the bundle
+        shell: bash
+        run: |
+          ./dist/rummage/rummage --version
+          RUMMAGE_HOME="$PWD/smoke-home" ./dist/rummage/rummage status
+      - name: archive
+        shell: bash
+        run: |
+          cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/rummage/
+          cd dist
+          if [[ "${{ runner.os }}" == "Windows" ]]; then 7z a "rummage-${{ matrix.name }}.zip" rummage; \
+          else tar -czf "rummage-${{ matrix.name }}.tar.gz" rummage; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rummage-${{ matrix.name }}
+          path: dist/rummage-${{ matrix.name }}.*
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install build && python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [standalone, wheel]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: artifacts/*

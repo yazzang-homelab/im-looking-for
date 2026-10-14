@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rummage</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f7f7f8; --card:#fff; --fg:#17181c; --muted:#6b6f7a; --line:#e3e4e8; --accent:#3b6cff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111216; --card:#1a1c22; --fg:#eceef3; --muted:#9aa0ad; --line:#2a2d36; --accent:#6f93ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background:var(--bg); color:var(--fg); }
+  header { position:sticky; top:0; z-index:2; background:var(--bg); border-bottom:1px solid var(--line); padding:14px 20px; }
+  .bar { display:flex; gap:10px; max-width:1100px; margin:0 auto; align-items:center; }
+  .brand { font-weight:700; letter-spacing:.2px; }
+  #q { flex:1; font:inherit; font-size:17px; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card); color:var(--fg); outline:none; }
+  #q:focus { border-color:var(--accent); }
+  select, button { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  main { max-width:1100px; margin:0 auto; padding:16px 20px 60px; }
+  #status { color:var(--muted); font-size:13px; margin:2px 0 14px; min-height:20px; }
+  .results { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; }
+  .card:hover { border-color:var(--accent); }
+  .thumb { height:160px; background:var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:34px; }
+  .thumb img { width:100%; height:100%; object-fit:cover; }
+  .thumb.pdf img { object-position:top; }
+  .body { padding:10px 12px; display:flex; flex-direction:column; gap:4px; }
+  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .meta { color:var(--muted); font-size:12px; display:flex; gap:8px; }
+  .snip { font-size:13px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .reveal { font-size:12px; color:var(--accent); background:none; border:none; padding:0; text-align:left; }
+  dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--fg); width:min(560px, 92vw); }
+  .folder { display:flex; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); word-break:break-all; }
+  .row { display:flex; gap:8px; margin-top:12px; }
+  .row input { flex:1; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  .empty { color:var(--muted); text-align:center; padding:60px 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <span class="brand">Rummage</span>
+    <input id="q" autofocus autocomplete="off" spellcheck="false">
+    <select id="kind">
+      <option value="" data-t="all"></option><option value="image" data-t="image"></option><option value="pdf" data-t="pdf"></option>
+      <option value="doc" data-t="doc"></option><option value="audio" data-t="audio"></option><option value="video" data-t="video"></option>
+    </select>
+    <button id="folders" data-t="folders"></button>
+  </div>
+</header>
+<main>
+  <div id="status"></div>
+  <div id="results" class="results"></div>
+</main>
+<dialog id="dlg">
+  <h3 data-t="folders"></h3>
+  <div id="flist"></div>
+  <div class="row"><input id="fpath" placeholder="/path/to/folder"><button id="fadd" data-t="add"></button></div>
+  <div class="row"><button id="index" class="primary" data-t="index"></button><button id="stop" data-t="stop"></button><span style="flex:1"></span><button id="close" data-t="close"></button></div>
+</dialog>
+<script>
+const TOKEN = "__TOKEN__";
+const T = {
+  en: { placeholder:"Describe what you're looking for…", all:"All", image:"Pictures", pdf:"PDFs", doc:"Documents", audio:"Sound", video:"Videos",
+        folders:"Folders", add:"Add", index:"Read files", stop:"Stop", close:"Close", remove:"Remove", reveal:"Show in folder",
+        nothing:"Nothing found.", setup:"Run `rummage setup` first to download the model.", nofolders:"Add a folder to search, then read its files.",
+        indexed:(n,v)=>`${n} files, ${v} vectors`, reading:(d,t)=>`Reading ${d} / ${t}`, searching:"Searching…" },
+  ko: { placeholder:"찾는 것을 말로 설명하세요…", all:"전체", image:"사진", pdf:"PDF", doc:"문서", audio:"소리", video:"영상",
+        folders:"폴더", add:"추가", index:"파일 읽기", stop:"중지", close:"닫기", remove:"빼기", reveal:"폴더에서 보기",
+        nothing:"찾지 못했습니다.", setup:"먼저 `rummage setup`으로 모델을 받으세요.", nofolders:"검색할 폴더를 추가하고 파일을 읽히세요.",
+        indexed:(n,v)=>`파일 ${n}개, 벡터 ${v}개`, reading:(d,t)=>`읽는 중 ${d} / ${t}`, searching:"검색 중…" },
+};
+const L = T[(navigator.language || "en").slice(0,2)] || T.en;
+document.querySelectorAll("[data-t]").forEach(e => e.textContent = L[e.dataset.t]);
+const $ = id => document.getElementById(id);
+$("q").placeholder = L.placeholder;
+const ICON = { image:"🖼", pdf:"📄", doc:"📝", audio:"🎧", video:"🎬" };
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? { headers:{"X-Rummage-Token":TOKEN} }
+    : { method:"POST", headers:{"X-Rummage-Token":TOKEN, "Content-Type":"application/json"}, body:JSON.stringify(body) });
+  return r.json();
+}
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let seq = 0, timer;
+async function search() {
+  const q = $("q").value.trim(), n = ++seq;
+  history.replaceState(null, "", q ? "?q=" + encodeURIComponent(q) : "/");
+  if (!q) { $("results").innerHTML = ""; return refresh(); }
+  $("status").textContent = L.searching;
+  const params = new URLSearchParams({ q, n:"40" });
+  if ($("kind").value) params.append("kind", $("kind").value);
+  const results = await api("/api/search?" + params);
+  if (n !== seq) return;
+  if (results.error) { $("status").textContent = results.error; return; }
+  $("status").textContent = "";
+  $("results").innerHTML = results.length ? results.map((r, i) => {
+    const thumbable = r.kind === "image" || r.kind === "video" || (r.kind === "pdf" && r.segment !== "name");
+    const src = `/thumb?${new URLSearchParams({ path:r.path, segment:r.segment, loc:String(r.loc), token:TOKEN })}`;
+    return `<div class="card" data-i="${i}">
+      <div class="thumb ${r.kind}">${thumbable ? `<img loading="lazy" src="${src}" onerror="this.replaceWith('${ICON[r.kind]}')">` : ICON[r.kind]}</div>
+      <div class="body"><div class="name" title="${esc(r.path)}">${esc(r.name)}</div>
+      <div class="meta"><span>${L[r.kind]}</span>${r.where ? `<span>${esc(r.where)}</span>` : ""}<span>${r.score.toFixed(3)}</span></div>
+      ${r.snippet ? `<div class="snip">${esc(r.snippet)}</div>` : ""}
+      <button class="reveal" data-reveal="${i}">${L.reveal}</button></div></div>`;
+  }).join("") : `<div class="empty">${L.nothing}</div>`;
+  document.querySelectorAll(".card").forEach(card => card.onclick = e => {
+    const r = results[card.dataset.i];
+    api("/api/open", { path:r.path, reveal: !!e.target.dataset.reveal });
+  });
+}
+$("q").oninput = () => { clearTimeout(timer); timer = setTimeout(search, 250); };
+$("kind").onchange = search;
+
+async function refresh() {
+  const s = await api("/api/status");
+  if (!s.ready) $("status").textContent = L.setup;
+  else if (!s.folders.length) $("status").textContent = L.nofolders;
+  else if (s.indexing && s.progress) $("status").textContent = L.reading(s.progress.done + s.progress.failed, s.progress.total);
+  else if (!$("q").value.trim()) $("status").textContent = s.error || L.indexed(Object.values(s.index.files).reduce((a,b)=>a+b,0), s.index.vectors);
+  $("flist").innerHTML = s.folders.map(f => `<div class="folder"><span>${esc(f)}</span><button data-rm="${esc(f)}">${L.remove}</button></div>`).join("");
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => { await api("/api/folders", { remove:b.dataset.rm }); refresh(); });
+  return s;
+}
+$("folders").onclick = () => { refresh(); $("dlg").showModal(); };
+$("close").onclick = () => $("dlg").close();
+$("fadd").onclick = async () => { const r = await api("/api/folders", { add:$("fpath").value }); if (r.error) alert(r.error); $("fpath").value = ""; refresh(); };
+$("index").onclick = async () => { await api("/api/index", {}); refresh(); };
+$("stop").onclick = async () => { await api("/api/index", { stop:true }); refresh(); };
+const initial = new URLSearchParams(location.search).get("q");
+if (initial) { $("q").value = initial; search(); } else refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, 2000);
+</script>
+</body>
+</html>

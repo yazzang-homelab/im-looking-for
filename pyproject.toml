@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rummage"
+version = "0.1.0"
+description = "Search the files on your computer by what's in them: photos, PDFs, documents, recordings and videos. On-device, built on EmbeddingGemma 2."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Rummage contributors" }]
+keywords = ["search", "embeddings", "multimodal", "local-first", "embeddinggemma", "llama.cpp"]
+classifiers = [
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Desktop Environment :: File Managers",
+]
+dependencies = [
+  "numpy>=1.26",
+  "pillow>=10.0",
+  "pypdfium2>=4.30",
+  "platformdirs>=4.0",
+  "imageio-ffmpeg>=0.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+rummage = "rummage.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rummage"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs the real llama-server and model files (RUMMAGE_INTEGRATION=1)"]
