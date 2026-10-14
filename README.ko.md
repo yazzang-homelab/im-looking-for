@@ -9,6 +9,11 @@
 
 ![“바닷가에서 뛰는 강아지” 검색: 파도 속 강아지 사진이 1위](docs/images/results-ko.png)
 
+[![20초 홍보 영상: 설명하면 찾아 줍니다, 한국어 질의로 임대차 계약서 PDF 찾기, 에이전트용 --json과 MCP](docs/media/promo-poster.png)](docs/media/promo.mp4)
+
+*20초 홍보 영상([mp4](docs/media/promo.mp4))입니다. 영상 속 화면은 모두 실제 앱을 캡처한 것이며, 터미널에는
+`ilf a dog on the beach --json`의 실제 출력이 그대로 나옵니다.*
+
 ```console
 $ ilf 바닷가에서 뛰는 강아지
  1. 0.702  [image]  ~/Pictures/IMG_0412.jpg

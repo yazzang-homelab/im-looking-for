@@ -9,6 +9,11 @@ server.
 
 ![Searching "a dog on the beach": the photo of a dog in the surf comes first](docs/images/results-en.png)
 
+[![20-second promo: describe it, find it; a Korean query finds the lease PDF; --json and MCP for agents](docs/media/promo-poster.png)](docs/media/promo.mp4)
+
+*20-second promo ([mp4](docs/media/promo.mp4)). Every screen in it is a capture of the real app, and the terminal shows the
+verbatim output of `ilf a dog on the beach --json`.*
+
 ```console
 $ ilf a dog running on the beach
  1. 0.723  [image]  ~/Pictures/IMG_0412.jpg
