@@ -46,7 +46,11 @@ Then run `ilf`: it opens the app, and the first run walks you through setup. On 
 (`uv tool update-shell` / `pipx ensurepath` once, then open a new terminal). From a clone: `pipx install .`.
 
 Prefer no Python? Download the standalone build for Windows, macOS or Linux from
-[Releases](https://github.com/yazzang-homelab/im-looking-for/releases), unzip it and run `ilf`.
+[Releases](https://github.com/yazzang-homelab/im-looking-for/releases), unzip it and run `ilf`. The builds aren't
+code-signed yet, so Windows shows "Windows protected your PC" / "Unknown publisher" for a downloaded `ilf.exe`: choose
+**More info → Run anyway**, or unblock the zip before unzipping it (right-click → Properties → **Unblock**, or
+`Unblock-File ilf-windows-x64.zip`). Installing with `uv`/`pipx`/`pip` above shows no such warning. On macOS,
+right-click → **Open** the first time.
 
 The first run downloads llama.cpp (12–35 MB) and the model (865 MB) once, pinned to exact versions and checked by
 SHA-256. It picks the llama.cpp build for your computer: **Metal** on Apple Silicon, **Vulkan** on Windows (any recent

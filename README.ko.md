@@ -46,7 +46,10 @@ pip install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads
 `uv tool update-shell` 또는 `pipx ensurepath` 실행 후 새 터미널). 저장소를 내려받았다면 그 폴더에서 `pipx install .`입니다.
 
 Python 없이 쓰려면 [Releases](https://github.com/yazzang-homelab/im-looking-for/releases)에서 Windows·macOS·Linux용
-단독 실행본을 받아 압축을 풀고 `ilf`를 실행하십시오.
+단독 실행본을 받아 압축을 풀고 `ilf`를 실행하십시오. 실행본은 아직 코드 서명이 없어서, 내려받은 `ilf.exe`를 실행하면
+Windows가 "Windows의 PC 보호" / "알 수 없는 게시자" 경고를 띄웁니다. **추가 정보 → 실행**을 누르거나, 압축을 풀기 전에
+zip 파일의 차단을 해제하십시오(우클릭 → 속성 → **차단 해제**, 또는 `Unblock-File ilf-windows-x64.zip`). 위의
+`uv`/`pipx`/`pip` 설치는 이 경고가 나오지 않습니다. macOS에서는 처음 한 번 우클릭 → **열기**로 실행하십시오.
 
 처음 한 번 llama.cpp(12~35MB)와 모델(865MB)을 내려받습니다. 버전을 고정하고 SHA-256으로 검증합니다. 컴퓨터에
 맞는 llama.cpp를 자동으로 고릅니다. Apple Silicon은 **Metal**, Windows는 **Vulkan**(최근 NVIDIA·AMD·Intel GPU),
