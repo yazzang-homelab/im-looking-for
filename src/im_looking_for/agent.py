@@ -42,6 +42,9 @@ class Agent:
         self.thread: threading.Thread | None = None
         self.stop = threading.Event()
         self.error: str | None = None
+        self._job = threading.Lock()
+        self._running = False
+        self._queued: list[list[str] | None] = []  # asked for while a run was going
 
     @property
     def engine(self) -> Engine:
@@ -51,36 +54,58 @@ class Agent:
             return self._engine
 
     def indexing(self) -> bool:
-        return bool(self.thread and self.thread.is_alive())
+        return self._running
 
-    def start_index(self, folders: list[str] | None) -> bool:
-        if self.indexing():
-            return False
-        self.stop.clear()
-        self.error = None
-        self.progress = None
+    def start_index(self, folders: list[str] | None) -> str:
+        """Reads ``folders`` (None: all) in the background: "started", or "queued" when a run is already going, in
+        which case another run follows it, so a folder added in the middle is read too."""
+        with self._job:
+            if self._running:
+                self._queued.append(folders)
+                return "queued"
+            self._running = True
+            self.stop.clear()
+            self.error = None
+            self.progress = None
+        self.thread = threading.Thread(target=self._run, args=(folders,), name="ilf-index", daemon=True)
+        self.thread.start()
+        return "started"
 
-        def run() -> None:
+    def stop_index(self) -> None:
+        """Stops the run after the current file (or folder, while looking) and drops the queued ones."""
+        with self._job:
+            self._queued.clear()
+            self.stop.set()
+
+    def _run(self, folders: list[str] | None) -> None:
+        while True:
             try:
                 self.engine.index(folders, on_progress=lambda p: setattr(self, "progress", p), stop=self.stop)
-            except Exception as e:  # reported by status()
+            except Exception as e:  # reported by status(); the queued runs would fail the same way
                 self.error = f"{type(e).__name__}: {e}"
-
-        self.thread = threading.Thread(target=run, name="ilf-index", daemon=True)
-        self.thread.start()
-        return True
+            with self._job:
+                if not self._queued or self.error:
+                    self._queued.clear()
+                    self._running = False
+                    return
+                wanted = self._queued
+                self._queued = []
+                self.stop.clear()  # asked for after the stop
+            folders = None if any(f is None for f in wanted) else list(dict.fromkeys(f for w in wanted for f in w))
 
     def status(self) -> dict:
         report = status.describe(self.engine.config, self.engine.store)
         p = self.progress
         report["indexing"] = self.indexing()
+        report["index_queued"] = bool(self._queued)
         report["progress"] = None if p is None else {
-            "total": p.total, "read": p.done, "unchanged": p.skipped, "unreadable": p.failed, "current": p.current}
+            "phase": p.phase, "found": p.found, "total": p.total, "read": p.done, "unchanged": p.skipped,
+            "unreadable": p.failed, "current": p.current}
         report["index_error"] = self.error
         return report
 
     def close(self) -> None:
-        self.stop.set()
+        self.stop_index()
         if self.thread:
             self.thread.join(timeout=10)
         if self._engine is not None:
@@ -143,13 +168,14 @@ def build(agent: Agent) -> MCPServer:
             return {"error": "not set up: the user needs to run `ilf setup`", "started": False}
         if not (folders or agent.engine.config.folders):
             return {"error": "no folders added yet; use add_folder first", "started": False}
-        started = agent.start_index(folders)
-        return {"started": started, "already_running": not started}
+        state = agent.start_index(folders)
+        return {"started": state == "started", "queued": state == "queued"}
 
     @mcp.tool(annotations=ToolAnnotations(idempotent_hint=True, destructive_hint=False, open_world_hint=False))
     def stop_indexing() -> dict:
-        """Stop a running index job after the current file; the next index run continues from there."""
-        agent.stop.set()
+        """Stop a running index job after the current file, dropping queued ones; the next index run continues
+        from there."""
+        agent.stop_index()
         return {"stopping": agent.indexing()}
 
     return mcp

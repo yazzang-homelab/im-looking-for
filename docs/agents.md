@@ -32,7 +32,7 @@ can add folders and start indexing itself (`add_folder`, `index`), but the ~900 
 | `status` | — | Status (below) plus `indexing`, `progress`, `index_error` | none |
 | `add_folder` | `folder` | `{added, folders}` | edits the config |
 | `remove_folder` | `folder` | `{removed, folders}` | edits the config; files leave the index on the next full run |
-| `index` | `folders` = all | `{started, already_running}` | reads files in the background |
+| `index` | `folders` = all | `{started, queued}` | reads files in the background; while a run is going, queues another one after it |
 | `stop_indexing` | — | `{stopping}` | stops after the current file |
 
 `index` returns at once. Poll `status` until `indexing` is false; `progress` has `total`, `read`, `unchanged`,

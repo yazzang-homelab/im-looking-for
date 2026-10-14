@@ -7,6 +7,8 @@ password stores or files that look like secrets, and never follows a link out of
 from __future__ import annotations
 
 import os
+import threading
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 IMAGE = {"jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff"}
@@ -51,22 +53,56 @@ def skip_folder(name: str, excluded: frozenset[str] = frozenset()) -> bool:
             or name in excluded)
 
 
+JUNCTION = 0xA0000003  # IO_REPARSE_TAG_MOUNT_POINT
+
+
+def _is_link(entry: os.DirEntry) -> bool:
+    """Symlinks, and on Windows junctions too: every profile has ``Application Data`` and ``Local Settings``
+    pointing back into it, so following them goes round forever. (OneDrive's cloud files are reparse points of
+    another kind and are read.)"""
+    if entry.is_symlink():
+        return True
+    return os.name == "nt" and getattr(entry.stat(follow_symlinks=False), "st_reparse_tag", 0) == JUNCTION
+
+
 def walk(roots: list[Path], excluded_folders: frozenset[str] = frozenset(),
-         excluded_extensions: frozenset[str] = frozenset()):
-    """Yields (path, kind) for every readable file under ``roots``, without following links."""
+         excluded_extensions: frozenset[str] = frozenset(), stop: threading.Event | None = None,
+         on_folder: Callable[[str], None] | None = None) -> Iterator[tuple[Path, str, int, float]]:
+    """Yields (path, kind, size, mtime) for every readable file under ``roots``, without following links or
+    junctions. Sizes and times come from the directory listing itself, which on Windows saves a call per file.
+    Ends early once ``stop`` is set; ``on_folder`` hears each folder as it's opened."""
     seen: set[Path] = set()
     for root in roots:
         root = Path(root).expanduser().resolve()
         if root in seen or not root.is_dir():
             continue
         seen.add(root)
-        for folder, folders, files in os.walk(root, followlinks=False, onerror=lambda error: None):
-            folders[:] = sorted(f for f in folders if not skip_folder(f, excluded_folders)
-                                and str(Path(folder, f)) not in excluded_folders)
-            for name in sorted(files):
-                path = Path(folder, name)
-                if path.is_symlink():
+        pending = [str(root)]
+        while pending:
+            if stop is not None and stop.is_set():
+                return
+            folder = pending.pop()
+            if on_folder:
+                on_folder(folder)
+            try:
+                with os.scandir(folder) as it:
+                    entries = sorted(it, key=lambda e: e.name)
+            except OSError:
+                continue
+            folders = []
+            for entry in entries:
+                try:
+                    if _is_link(entry):
+                        continue
+                    if entry.is_dir():
+                        if not skip_folder(entry.name, excluded_folders) and entry.path not in excluded_folders:
+                            folders.append(entry.path)
+                        continue
+                    path = Path(entry.path)
+                    kind = kind_of(path, excluded_extensions)
+                    if kind:
+                        info = entry.stat()
+                        yield path, kind, info.st_size, info.st_mtime
+                except OSError:
                     continue
-                kind = kind_of(path, excluded_extensions)
-                if kind:
-                    yield path, kind
+            pending.extend(reversed(folders))  # depth first, in name order

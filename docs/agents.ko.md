@@ -32,7 +32,7 @@ im-looking-for를 쓰면 에이전트가 사용자 컴퓨터의 파일을 내용
 | `status` | 없음 | 아래 Status + `indexing`, `progress`, `index_error` | 없음 |
 | `add_folder` | `folder` | `{added, folders}` | 설정 변경 |
 | `remove_folder` | `folder` | `{removed, folders}` | 설정 변경. 다음 전체 색인 때 색인에서 빠짐 |
-| `index` | `folders` = 전체 | `{started, already_running}` | 백그라운드에서 파일 읽기 |
+| `index` | `folders` = 전체 | `{started, queued}` | 백그라운드에서 파일 읽기. 이미 읽는 중이면 끝난 뒤 한 번 더 읽도록 예약 |
 | `stop_indexing` | 없음 | `{stopping}` | 현재 파일까지 읽고 멈춤 |
 
 `index`는 바로 반환합니다. `status`의 `indexing`이 false가 될 때까지 폴링하십시오. `progress`에는 `total`, `read`,

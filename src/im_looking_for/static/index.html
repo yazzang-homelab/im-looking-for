@@ -289,6 +289,8 @@ const T = {
     chooseFolder: "Choose a folder", pick: "Search this folder", noFolders: "No folders yet.",
     remove: "Remove", files: "files", vectors: "passages", unreadable: "unreadable",
     reading: (d, t) => `Reading ${d} of ${t}`, readingShort: (d, t) => `Reading ${d}/${t}`,
+    looking: n => `Looking through the folders — ${n} files found`, lookingShort: n => `Looking… ${n}`,
+    stopping: "Stopping…", queued: "When this pass ends, it reads again to include the folder you added.",
     indexed: n => `${n} files`, notReady: "Set up", noIndex: "Add a folder",
     results: (n, q, s) => `${n} results for “${q}” · ${s}s`, nothing: q => `Nothing found for “${q}”.`,
     nothingHint: "Try describing what's in it rather than its name, or another language.",
@@ -324,6 +326,8 @@ const T = {
     chooseFolder: "폴더 선택", pick: "이 폴더 검색하기", noFolders: "아직 폴더가 없습니다.",
     remove: "빼기", files: "파일", vectors: "구간", unreadable: "읽기 실패",
     reading: (d, t) => `${t}개 중 ${d}개 읽는 중`, readingShort: (d, t) => `읽는 중 ${d}/${t}`,
+    looking: n => `폴더 살펴보는 중 — 파일 ${n}개 찾음`, lookingShort: n => `살펴보는 중 ${n}`,
+    stopping: "멈추는 중…", queued: "지금 읽기가 끝나면 추가한 폴더까지 다시 읽습니다.",
     indexed: n => `파일 ${n}개`, notReady: "설정 필요", noIndex: "폴더 추가",
     results: (n, q, s) => `“${q}” 결과 ${n}개 · ${s}초`, nothing: q => `“${q}”에 맞는 파일이 없습니다.`,
     nothingHint: "파일 이름보다 안에 담긴 내용을 묘사해 보거나 다른 언어로 찾아보십시오.",
@@ -493,13 +497,17 @@ async function poll() {
   if ($("#wizard").classList.contains("on")) renderWizard();
   setTimeout(poll, status.indexing || status.setup.running ? 700 : 4000);
 }
+const doneOf = p => p.read + p.unchanged + p.unreadable;
+const progressLine = p => p.phase === "looking" ? t("looking", p.found) : t("reading", doneOf(p), p.total);
+let stopping = false;
 function totalFiles(s) { return Object.values(s.index.files).reduce((a, b) => a + b, 0); }
 function renderStatus() {
   if (!status) return;
   const s = status, n = totalFiles(s), p = s.progress;
   const dot = $("#dot"), mini = $("#mini");
   dot.className = "dot" + (s.indexing || s.setup.running ? " busy" : !s.ready || !n ? " off" : "");
-  $("#pilltext").textContent = !s.ready ? t("notReady") : s.indexing && p ? t("readingShort", p.read + p.unchanged + p.unreadable, p.total)
+  $("#pilltext").textContent = !s.ready ? t("notReady") : s.indexing && p
+    ? (p.phase === "looking" ? t("lookingShort", p.found) : t("readingShort", doneOf(p), p.total))
     : n ? t("indexed", n) : t("noIndex");
   mini.hidden = !(s.indexing && p && p.total);
   if (!mini.hidden) mini.firstElementChild.style.width = `${(p.read + p.unchanged + p.unreadable) / p.total * 100}%`;
@@ -514,7 +522,10 @@ function renderStatus() {
     <div class="note" style="grid-column:1/-1">${esc(kinds)}</div>`;
   $("#libprogress").innerHTML = progressHtml(s);
   $("#reindex").disabled = s.indexing || !s.ready || !s.folders.length;
+  if (!s.indexing) stopping = false;
   $("#stopindex").hidden = !s.indexing;
+  $("#stopindex").disabled = stopping;
+  $("#stopindex").textContent = t(stopping ? "stopping" : "stop");
   $("#mcpsnippet").textContent = mcpJson(s);
   renderEngine(s);
   $("#about").textContent = `im-looking-for ${s.version} · EmbeddingGemma 2 + llama.cpp (${s.runtime || "—"}) · ${s.data_dir}`;
@@ -541,8 +552,9 @@ function progressHtml(s) {
   const p = s.progress;
   if (s.index_error) return `<div class="err">${esc(s.index_error)}</div>`;
   if (!s.indexing || !p) return "";
-  const done = p.read + p.unchanged + p.unreadable, share = p.total ? done / p.total * 100 : 0;
-  return `<div class="track"><i style="width:${share}%"></i></div><small>${esc(t("reading", done, p.total))} — ${esc(p.current || "")}</small>`;
+  const share = p.total ? doneOf(p) / p.total * 100 : 2;
+  return `<div class="track"><i style="width:${share}%"></i></div><small>${esc(progressLine(p))} — ${esc(p.current || "")}</small>`
+    + (s.index_queued ? `<p class="note">${esc(t("queued"))}</p>` : "");
 }
 const mcpJson = s => JSON.stringify({mcpServers: {"im-looking-for": {command: s.mcp_command[0], args: s.mcp_command.slice(1)}}}, null, 2);
 $("#copymcp").onclick = () => navigator.clipboard.writeText(mcpJson(status)).then(() => toast(t("copied")));
@@ -552,7 +564,7 @@ $("#folderlist").onclick = async e => {
   await api("/api/folders", {remove: f}); status = await api("/api/status"); renderStatus();
 };
 $("#reindex").onclick = async () => { await api("/api/index", {}); status = await api("/api/status"); renderStatus(); };
-$("#stopindex").onclick = () => api("/api/index", {stop: true});
+$("#stopindex").onclick = async () => { stopping = true; renderStatus(); await api("/api/index", {stop: true}); };
 $("#addfolder").onclick = () => openBrowser(async path => { await api("/api/folders", {add: path}); await api("/api/index", {}); status = await api("/api/status"); openSheet("library"); });
 
 function openSheet(id) {
@@ -622,10 +634,10 @@ function renderWizard() {
       <div class="row" style="justify-content:space-between"><button class="btn" id="w-add">${esc(t("addFolder"))}</button>
       <button class="btn primary" id="w-start" ${s.folders.length ? "" : "disabled"}>${esc(t("start"))}</button></div>`;
   } else {
-    const p = s.progress, done = p ? p.read + p.unchanged + p.unreadable : 0;
+    const p = s.progress, done = p ? doneOf(p) : 0;
     html = `<h1>${esc(t("wizTitle3"))}</h1><p>${esc(t("wizBody3"))}</p>
       <div class="progress"><div class="track"><i style="width:${p && p.total ? done / p.total * 100 : s.indexing ? 2 : 100}%"></i></div>
-      <small>${p ? esc(t("reading", done, p.total)) + " — " + esc(p.current || "") : ""}</small></div>
+      <small>${p ? esc(progressLine(p)) + " — " + esc(p.current || "") : ""}</small></div>
       ${s.index_error ? `<div class="err">${esc(s.index_error)}</div>` : ""}
       ${s.star_asked ? "" : `<p class="note star">${esc(t("starAsk"))} <a href="${REPO}" target="_blank" rel="noopener" id="w-star">★ ${esc(t("starLink"))}</a></p>`}
       <div class="row" style="justify-content:flex-end"><button class="btn primary" id="w-done">${esc(t("startSearching"))}</button></div>`;

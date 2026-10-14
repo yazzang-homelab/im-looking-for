@@ -93,3 +93,32 @@ def test_other_reading_settings_empty_the_index(tmp_path, fake):
         e.index()
         indexer.ensure_version(e.store, Options(chunk_chars=999))
         assert e.store.paths() == []
+
+
+def test_a_stopped_look_forgets_nothing(tmp_path, fake):
+    import threading
+
+    root = tmp_path / "files"
+    root.mkdir()
+    (root / "a.txt").write_text("alpha words", encoding="utf-8")
+    eng = Engine(Config(folders=[str(root)]), tmp_path / "index.sqlite", embedder=fake)
+    eng.index()
+    stop = threading.Event()
+    stop.set()
+    progress = eng.index(stop=stop)
+    assert progress.phase == "looking" and progress.removed == 0 and len(eng.store.paths()) == 1
+    eng.close()
+
+
+def test_nothing_changed_means_the_model_is_not_started(tmp_path, fake):
+    root = tmp_path / "files"
+    root.mkdir()
+    (root / "a.txt").write_text("alpha words", encoding="utf-8")
+    eng = Engine(Config(folders=[str(root)]), tmp_path / "index.sqlite", embedder=fake)
+    eng.index()
+    started = []
+    eng.embedder = lambda media: started.append(media) or fake
+    assert eng.index().skipped == 1 and started == []
+    (root / "b.txt").write_text("beta words", encoding="utf-8")
+    assert eng.index().done == 1 and started == [True]
+    eng.close()

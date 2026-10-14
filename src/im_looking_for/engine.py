@@ -86,7 +86,7 @@ class Engine:
         excluded_folders, excluded_extensions = self.config.exclusions()
 
         def run() -> indexer.Progress:
-            return indexer.index(self.store, self.embedder(media=True), roots, extract.Options(),
+            return indexer.index(self.store, lambda: self.embedder(media=True), roots, extract.Options(),
                                  excluded_folders, excluded_extensions, on_progress, stop,
                                  prune_outside=everything)
 

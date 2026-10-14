@@ -1,5 +1,7 @@
 import json
+import threading
 import time
+from pathlib import Path
 
 import anyio
 import pytest
@@ -68,3 +70,64 @@ def test_refuses_unknown_paths_and_empty_setup(server, tmp_path):
     mcp, _, _ = server
     assert "error" in call(mcp, "read_passages", {"path": str(tmp_path / "secret.txt")})
     assert call(mcp, "index")["started"] is False
+
+
+class Gate:
+    """An embedder that waits at its first call until let go: keeps a run going while the test acts."""
+
+    def __init__(self, inner):
+        self.inner, self.entered, self.release = inner, threading.Event(), threading.Event()
+
+    def texts(self, prompts):
+        self.entered.set()
+        self.release.wait(10)
+        return self.inner.texts(prompts)
+
+    def media(self, data):
+        return self.inner.media(data)
+
+
+def wait_idle(a, seconds=20):
+    deadline = time.time() + seconds
+    while a.indexing() and time.time() < deadline:
+        time.sleep(0.02)
+    assert not a.indexing()
+
+
+def gated(tmp_path, fake):
+    first, second = tmp_path / "first", tmp_path / "second"
+    for folder, name in ((first, "a.txt"), (second, "b.txt")):
+        folder.mkdir()
+        (folder / name).write_text(f"{name} words", encoding="utf-8")
+    gate = Gate(fake)
+    a = agent.Agent(Engine(Config(folders=[str(first)]), tmp_path / "index.sqlite", embedder=gate))
+    return a, gate, second
+
+
+def test_a_folder_added_while_reading_is_read_after(tmp_path, fake):
+    a, gate, second = gated(tmp_path, fake)
+    assert a.start_index(None) == "started"
+    assert gate.entered.wait(10)
+    a.engine.config.add_folder(str(second))
+    assert a.start_index(None) == "queued" and a.status()["index_queued"]
+    gate.release.set()
+    wait_idle(a)
+    assert sorted(Path(p).name for p in a.engine.store.paths()) == ["a.txt", "b.txt"]
+    a.close()
+
+
+def test_stop_drops_the_queued_runs(tmp_path, fake):
+    a, gate, second = gated(tmp_path, fake)
+    a.start_index(None)
+    assert gate.entered.wait(10)
+    a.engine.config.add_folder(str(second))
+    a.start_index(None)
+    a.stop_index()
+    gate.release.set()
+    wait_idle(a)
+    # the file being read when stopped is finished; the folder queued after it is not read
+    assert [Path(p).name for p in a.engine.store.paths()] == ["a.txt"] and not a.status()["index_queued"]
+    assert a.start_index(None) == "started"  # a later run isn't stopped by the old stop
+    wait_idle(a)
+    assert len(a.engine.store.paths()) == 2
+    a.close()

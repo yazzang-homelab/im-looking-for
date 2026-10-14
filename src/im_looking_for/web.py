@@ -267,11 +267,12 @@ def _handler(app: App):
                 return self._json({"folders": config.folders})
             if url.path == "/api/index":
                 if body.get("stop"):
-                    app.stop.set()
+                    app.stop_index()
                     return self._json({"ok": True})
                 if not app.engine.config.folders:
                     return self._json({"error": "no folders"}, 400)
-                return self._json({"started": app.start_index(None)})
+                state = app.start_index(None)
+                return self._json({"started": state == "started", "queued": state == "queued"})
             if url.path == "/api/star-asked":
                 app.engine.config.star_asked = True
                 app.engine.config.save()

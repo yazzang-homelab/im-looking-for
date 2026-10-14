@@ -59,7 +59,8 @@ class _Bar:
         if now - self.last < 0.5 and p.current:
             return
         self.last = now
-        sys.stderr.write(f"\r\x1b[K  {p.done + p.failed}/{p.total}  {p.current[-70:] if p.current else ''}")
+        count = f"looking: {p.found} files" if p.phase == "looking" else f"{p.done + p.failed}/{p.total}"
+        sys.stderr.write(f"\r\x1b[K  {count}  {p.current[-70:] if p.current else ''}")
         sys.stderr.flush()
 
 

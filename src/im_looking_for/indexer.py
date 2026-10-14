@@ -25,6 +25,8 @@ ORDER = {"image": 0, "pdf": 1, "doc": 2, "audio": 3, "video": 4}
 
 @dataclass
 class Progress:
+    phase: str = "looking"  # "looking" through the folders, then "reading" the new and changed files
+    found: int = 0  # files seen while looking
     total: int = 0
     done: int = 0
     skipped: int = 0
@@ -58,17 +60,32 @@ def ensure_version(store: Store, options: extract.Options) -> None:
     store.set_meta("vector_version", version)
 
 
-def index(store: Store, embedder: Embedder, roots: list[Path], options: extract.Options | None = None,
+def index(store: Store, embedder: Callable[[], Embedder], roots: list[Path], options: extract.Options | None = None,
           excluded_folders: frozenset[str] = frozenset(), excluded_extensions: frozenset[str] = frozenset(),
           on_progress: Callable[[Progress], None] | None = None,
           stop: threading.Event | None = None, prune_outside: bool = False) -> Progress:
+    """``embedder`` is called once there's a file to read: looking through folders where nothing changed doesn't
+    start the model."""
     options = options or extract.Options()
     roots = [Path(r).expanduser().resolve() for r in roots]
     ensure_version(store, options)
     progress = Progress()
 
-    found = list(rules.walk(roots, excluded_folders, excluded_extensions))
-    present = {str(p) for p, _ in found}
+    def opened(folder: str) -> None:
+        progress.current = folder
+        if on_progress:
+            on_progress(progress)
+
+    found = []
+    for item in rules.walk(roots, excluded_folders, excluded_extensions, stop, opened):
+        found.append(item)
+        progress.found += 1
+    if stop is not None and stop.is_set():  # a partial look can't tell which files are gone
+        progress.current = ""
+        if on_progress:
+            on_progress(progress)
+        return progress
+    present = {str(p) for p, *_ in found}
     # forget files that were deleted, or are now left out; with `prune_outside`, also files outside every root
     # (a folder taken off the list). Without it, other folders' files are left alone.
     # A root that isn't there right now (an unplugged drive) keeps its files.
@@ -79,23 +96,21 @@ def index(store: Store, embedder: Embedder, roots: list[Path], options: extract.
     progress.removed = len(gone)
 
     todo = []
-    for path, kind in found:
-        try:
-            info = path.stat()
-        except OSError:
-            continue
+    for path, kind, size, mtime in found:
         row = store.file(str(path))
         # unreadable files are tried again each run: the cause may have been fixed since
-        if (row and row.status != "error" and row.size == info.st_size and row.mtime == info.st_mtime
-                and row.kind == kind):
+        if row and row.status != "error" and row.size == size and row.mtime == mtime and row.kind == kind:
             progress.skipped += 1
             continue
-        todo.append((ORDER[kind], path, kind, info.st_size, info.st_mtime))
+        todo.append((ORDER[kind], path, kind, size, mtime))
     todo.sort(key=lambda t: t[0])
+    progress.phase = "reading"
+    progress.current = ""
     progress.total = len(todo)
     if on_progress:
         on_progress(progress)
 
+    model = None
     for _, path, kind, size, mtime in todo:
         if stop is not None and stop.is_set():
             break
@@ -103,8 +118,11 @@ def index(store: Store, embedder: Embedder, roots: list[Path], options: extract.
         if on_progress:
             on_progress(progress)
         name = ("name", "none", 0.0, None, name_text(path, roots), None)
+        model = model or embedder()  # a model that won't start fails every file the same way: raised
+        if stop is not None and stop.is_set():  # stopped while it started
+            break
         try:
-            segments = _embed_file(path, kind, options, embedder, stop)
+            segments = _embed_file(path, kind, options, model, stop)
         except ServerUnavailable:
             raise  # every file would fail the same way: stop and say why
         except Exception as e:  # one bad file never stops the rest
