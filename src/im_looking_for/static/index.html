@@ -138,6 +138,7 @@ main.with-preview aside.preview { display: block; }
 .progress small { color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 pre.snippet { background: var(--panel2); border-radius: 10px; padding: 12px; margin: 0; overflow-x: auto; color: var(--dim); }
 .note { color: var(--faint); font-size: 13px; }
+.note.star a { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
 .err { color: var(--bad); font-size: 13.5px; word-break: break-word; }
 
 /* wizard */
@@ -300,6 +301,7 @@ const T = {
     wizTitle3: "Reading your files", wizBody3: "The first pass takes a while — about a second per document page and a few seconds per photo on a CPU. You can already search what's read.",
     next: "Next", start: "Start reading", startSearching: "Start searching", later: "Later",
     error: "Something went wrong",
+    starAsk: "If im-looking-for helps you, a GitHub star helps others find it.", starLink: "Star on GitHub",
   },
   ko: {
     lead: "찾고 있는 건", placeholder: "바닷가의 강아지, 임대차 계약서 PDF, 회의 얘기한 음성메모…", search: "찾기",
@@ -334,11 +336,13 @@ const T = {
     wizTitle3: "파일을 읽고 있습니다", wizBody3: "처음 한 번은 시간이 걸립니다. CPU 기준으로 문서 한 쪽에 1초, 사진 한 장에 몇 초 정도입니다. 읽은 파일은 바로 검색할 수 있습니다.",
     next: "다음", start: "읽기 시작", startSearching: "검색 시작하기", later: "나중에",
     error: "문제가 생겼습니다",
+    starAsk: "im-looking-for가 도움이 되었다면 GitHub 별표를 눌러 주십시오. 다른 사람이 찾는 데 도움이 됩니다.", starLink: "GitHub에서 별표 주기",
   },
 };
 let lang = localStorage.getItem("ilf.lang") || ((navigator.language || "en").toLowerCase().startsWith("ko") ? "ko" : "en");
 const t = (k, ...a) => { const v = T[lang][k] ?? T.en[k]; return typeof v === "function" ? v(...a) : v; };
 
+const REPO = "https://github.com/yazzang-homelab/im-looking-for";
 const KINDS = ["all", "image", "pdf", "doc", "audio", "video"];
 const GLYPH = {image: "🖼", pdf: "📄", doc: "📝", audio: "🎙", video: "🎬"};
 let kind = "all", results = [], sel = -1, lastQuery = "", status = null, searchSeq = 0, wizStep = 0, wasIndexing = false;
@@ -622,6 +626,7 @@ function renderWizard() {
       <div class="progress"><div class="track"><i style="width:${p && p.total ? done / p.total * 100 : s.indexing ? 2 : 100}%"></i></div>
       <small>${p ? esc(t("reading", done, p.total)) + " — " + esc(p.current || "") : ""}</small></div>
       ${s.index_error ? `<div class="err">${esc(s.index_error)}</div>` : ""}
+      ${s.star_asked ? "" : `<p class="note star">${esc(t("starAsk"))} <a href="${REPO}" target="_blank" rel="noopener" id="w-star">★ ${esc(t("starLink"))}</a></p>`}
       <div class="row" style="justify-content:flex-end"><button class="btn primary" id="w-done">${esc(t("startSearching"))}</button></div>`;
   }
   $("#wizbody").innerHTML = bar + html;
@@ -631,7 +636,9 @@ function renderWizard() {
   });
   $("#w-add") && ($("#w-add").onclick = () => openBrowser(async path => { await api("/api/folders", {add: path}); status = await api("/api/status"); }));
   $("#w-start") && ($("#w-start").onclick = async () => { wizStep = 3; await api("/api/index", {}); status = await api("/api/status"); renderWizard(); });
-  $("#w-done") && ($("#w-done").onclick = () => { wizStep = 0; localStorage.setItem("ilf.welcomed", "1"); closeSheets(); });
+  const starSeen = () => { if (!status.star_asked) { status.star_asked = true; api("/api/star-asked", {}).catch(() => {}); } };
+  $("#w-star") && ($("#w-star").onclick = starSeen);
+  $("#w-done") && ($("#w-done").onclick = () => { starSeen(); wizStep = 0; localStorage.setItem("ilf.welcomed", "1"); closeSheets(); });
 }
 
 /* ---------- start ---------- */

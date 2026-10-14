@@ -81,6 +81,7 @@ class App(Agent):
                            "progress": self.setup_progress, "error": self.setup_error,
                            "default_backend": assets.default_backend()}
         report["mcp_command"] = mcp_command()
+        report["star_asked"] = self.engine.config.star_asked
         return report
 
     def warm(self) -> None:
@@ -271,6 +272,10 @@ def _handler(app: App):
                 if not app.engine.config.folders:
                     return self._json({"error": "no folders"}, 400)
                 return self._json({"started": app.start_index(None)})
+            if url.path == "/api/star-asked":
+                app.engine.config.star_asked = True
+                app.engine.config.save()
+                return self._json({"ok": True})
             if url.path == "/api/setup":
                 backend = body.get("backend") or None
                 if backend is not None and backend not in assets.backends():

@@ -106,3 +106,11 @@ def test_add_folder_then_index_from_the_page(site, tmp_path):
     with pytest.raises(urllib.error.HTTPError) as e:
         call(base + "/api/setup", token=app.token, body={"backend": "nonsense"})
     assert e.value.code == 400
+
+
+def test_star_request_is_remembered(site):
+    base, app, _, _ = site
+    assert json.loads(call(base + "/api/status", token=app.token)[1])["star_asked"] is False
+    call(base + "/api/star-asked", token=app.token, body={})
+    assert json.loads(call(base + "/api/status", token=app.token)[1])["star_asked"] is True
+    assert Config.load().star_asked

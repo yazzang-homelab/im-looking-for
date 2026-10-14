@@ -80,3 +80,21 @@ def test_no_arguments_opens_the_app(monkeypatch):
     monkeypatch.setattr(web, "serve", lambda **kw: calls.append(kw) or 0)
     assert cli.main([]) == 0
     assert calls == [{"port": 8765, "open_browser": True, "app_window": True}]
+
+
+@pytest.mark.parametrize("json_flag, tty, asked", [(False, True, True), (False, False, False), (True, True, False)])
+def test_setup_asks_for_a_star_once_and_only_in_a_terminal(monkeypatch, capsys, json_flag, tty, asked):
+    from im_looking_for import assets
+    from im_looking_for.config import Config
+
+    monkeypatch.setattr(assets, "install", lambda backend, progress=None: {"backend": backend, "runtime": None,
+                                                                           "models": []})
+    monkeypatch.setattr(assets, "ready", lambda: True)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: tty)
+    args = ["setup", "--backend", "cpu"] + (["--json"] if json_flag else [])
+    assert cli.main(args) == 0
+    assert ("github.com/yazzang-homelab/im-looking-for" in capsys.readouterr().out) is asked
+    assert Config.load().star_asked is asked
+    if asked:
+        assert cli.main(args) == 0
+        assert "github.com" not in capsys.readouterr().out

@@ -63,6 +63,9 @@ class _Bar:
         sys.stderr.flush()
 
 
+REPO_URL = "https://github.com/yazzang-homelab/im-looking-for"
+
+
 def cmd_setup(args) -> int:
     config = Config.load()
     backend = args.backend or config.backend or assets.default_backend()
@@ -77,6 +80,10 @@ def cmd_setup(args) -> int:
         _emit(report)
     else:
         print("Ready." if report["ready"] else "Something is still missing; run `ilf status`.")
+        if report["ready"] and sys.stdout.isatty() and not config.star_asked:
+            print(f"\nIf im-looking-for helps you, a GitHub star helps others find it: {REPO_URL}")
+            config.star_asked = True
+            config.save()
     return 0 if report["ready"] else FAILED
 
 

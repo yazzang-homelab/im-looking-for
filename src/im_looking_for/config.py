@@ -19,6 +19,8 @@ class Config:
     # Why the GPU was given up on (it failed to start or died) and the processor is used instead; None = use the GPU.
     # Choosing a backend again (`ilf setup`, Settings) clears it, so the GPU gets another try.
     gpu_failed: str | None = None
+    # The one-time "star the repo" line was shown (end of `ilf setup` in a terminal, or the app's welcome). Never again.
+    star_asked: bool = False
 
     @classmethod
     def load(cls) -> Config:
