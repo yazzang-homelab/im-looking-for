@@ -1,3 +1,5 @@
+<img src="docs/images/logo.png" alt="im-looking-for logo: two eyes in a magnifying glass" width="128" align="right">
+
 # im-looking-for
 
 **English** · [한국어](README.ko.md)

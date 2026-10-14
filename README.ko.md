@@ -1,3 +1,5 @@
+<img src="docs/images/logo.png" alt="im-looking-for 로고: 돋보기 속 두 눈" width="128" align="right">
+
 # im-looking-for
 
 [English](README.md) · **한국어**
