@@ -38,7 +38,7 @@ def _free_port() -> int:
 
 class LlamaServer:
     def __init__(self, media: bool = True, image_tokens: int = 280, threads: int | None = None,
-                 gpu_layers: int = 99, startup_timeout: float = 180.0):
+                 gpu: bool = True, startup_timeout: float = 180.0):
         server = assets.find_server()
         if server is None:
             raise ServerUnavailable("llama.cpp isn't installed; run `ilf setup`")
@@ -47,16 +47,21 @@ class LlamaServer:
         if missing:
             raise ServerUnavailable(f"model files missing ({', '.join(missing)}); run `ilf setup`")
         self.media = media
+        self.gpu = gpu
         self.port = _free_port()
         self.base = f"http://127.0.0.1:{self.port}"
         args = [str(server), "--host", "127.0.0.1", "--port", str(self.port),
                 "-m", str(assets.model_path(assets.TEXT_MODEL)),
                 "--embeddings", "--pooling", "mean",
                 "-c", str(CONTEXT), "-b", str(CONTEXT), "-ub", str(CONTEXT),
-                "-np", "1", "-ngl", str(gpu_layers), "--no-webui"]
+                "-np", "1", "--no-webui"]
+        # gpu=False keeps everything on the processor, even in a Vulkan or Metal build (which carries the CPU code too).
+        args += ["-ngl", "99"] if gpu else ["-ngl", "0", "--device", "none"]
         if media:
             args += ["--mmproj", str(assets.model_path(assets.MEDIA_MODEL)),
                      "--image-min-tokens", str(image_tokens), "--image-max-tokens", str(image_tokens)]
+            if not gpu:
+                args += ["--no-mmproj-offload"]
         else:
             args += ["--no-mmproj"]
         if threads:
@@ -89,8 +94,9 @@ class LlamaServer:
         deadline = time.monotonic() + self.startup_timeout
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
-                raise ServerUnavailable(f"llama-server exited with {self.process.returncode}; "
-                                        f"see {paths.log_file()}")
+                code = self.process.returncode
+                self.stop()
+                raise ServerUnavailable(f"llama-server exited with {code}; see {paths.log_file()}")
             try:
                 with urllib.request.urlopen(f"{self.base}/health", timeout=2) as r:
                     healthy = r.status == 200
@@ -104,6 +110,9 @@ class LlamaServer:
             time.sleep(0.3)
         self.stop()
         raise ServerUnavailable(f"llama-server didn't start within {self.startup_timeout:.0f} s; see {paths.log_file()}")
+
+    def running(self) -> bool:
+        return self.process is not None and self.process.poll() is None
 
     def stop(self) -> None:
         if self.process and self.process.poll() is None:

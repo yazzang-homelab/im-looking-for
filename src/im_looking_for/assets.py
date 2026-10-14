@@ -186,8 +186,10 @@ def install_models(progress: Progress | None = None) -> None:
         download(asset, model_path(asset), progress)
 
 
-def install_runtime(backend: str | None = None, progress: Progress | None = None) -> Path:
-    """Downloads and unpacks llama.cpp into the runtime folder (replacing any other build there)."""
+def install_runtime(backend: str | None = None, progress: Progress | None = None,
+                    before_replace: Callable[[], None] | None = None) -> Path:
+    """Downloads and unpacks llama.cpp into the runtime folder (replacing any other build there). ``before_replace``
+    runs once the new build is unpacked, right before the old one goes: the place to stop a server that runs it."""
     asset = runtime_asset(backend)
     root = paths.runtime_dir()
     with tempfile.TemporaryDirectory(dir=paths.data_dir()) as scratch:
@@ -204,10 +206,20 @@ def install_runtime(backend: str | None = None, progress: Progress | None = None
                     t.extractall(unpacked, filter="data")
                 else:
                     t.extractall(unpacked)
+        (unpacked / "BUILD").write_text(f"{asset.name}\n", encoding="utf-8")
+        old = Path(scratch) / "old"
+        if before_replace:
+            before_replace()
         if root.exists():
-            shutil.rmtree(root)
+            # Moved aside whole, not deleted file by file: on Windows a running llama-server locks its DLLs, and a
+            # half-deleted build would be left behind. A failed move changes nothing.
+            try:
+                os.replace(root, old)
+            except OSError as e:
+                raise RuntimeError(f"the installed llama.cpp is in use ({e.strerror}); stop im-looking-for "
+                                   "(and anything running `ilf`) and try again") from None
         shutil.move(str(unpacked), root)
-    (root / "BUILD").write_text(f"{asset.name}\n", encoding="utf-8")
+        shutil.rmtree(old, ignore_errors=True)
     server = find_server()
     if server is None:
         raise RuntimeError(f"{asset.name} has no {server_executable_name()}")
@@ -222,14 +234,15 @@ def _check_members(names: list[str]) -> None:
             raise RuntimeError(f"refusing an archive entry outside its folder: {name}")
 
 
-def install(backend: str | None = None, progress: Progress | None = None) -> dict:
+def install(backend: str | None = None, progress: Progress | None = None,
+            before_replace: Callable[[], None] | None = None) -> dict:
     """Everything ``ilf setup`` does: the llama.cpp build for ``backend`` (unless it's already there) and any missing
     model file. Returns what was installed."""
     backend = backend or default_backend()
     done = {"backend": backend, "runtime": None, "models": []}
     wanted = runtime_asset(backend).name
     if installed_runtime() != wanted or find_server() is None:
-        install_runtime(backend, progress)
+        install_runtime(backend, progress, before_replace)
         done["runtime"] = wanted
     for asset in missing_models():
         download(asset, model_path(asset), progress)
@@ -244,3 +257,13 @@ def ready() -> bool:
 def installed_runtime() -> str | None:
     build = paths.runtime_dir() / "BUILD"
     return build.read_text(encoding="utf-8").strip() if build.is_file() else None
+
+
+def installed_backend() -> str | None:
+    """The backend of the llama.cpp build ``setup`` installed (cpu, vulkan, metal); None if unknown."""
+    name = installed_runtime()
+    system, arch = host()
+    for (s, a, backend), (suffix, _, _) in _RUNTIMES.items():
+        if (s, a) == (system, arch) and name == f"llama-{LLAMA_TAG}-bin-{suffix}":
+            return backend
+    return None

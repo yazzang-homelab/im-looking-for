@@ -43,7 +43,9 @@ Python 없이 쓰려면 릴리스 워크플로가 만드는 Windows·macOS·Linu
 처음 한 번 llama.cpp(12~35MB)와 모델(865MB)을 내려받습니다. 버전을 고정하고 SHA-256으로 검증합니다. 컴퓨터에
 맞는 llama.cpp를 자동으로 고릅니다. Apple Silicon은 **Metal**, Windows는 **Vulkan**(최근 NVIDIA·AMD·Intel GPU),
 Linux와 Intel Mac은 **CPU**입니다. GPU가 있는 Linux는 설정 화면이나 `ilf setup --backend vulkan`으로 Vulkan을
-고를 수 있습니다(`libvulkan1` 필요).
+고를 수 있습니다(`libvulkan1` 필요). GPU 빌드가 시작하지 못하거나 도중에 멈추면(GPU 드라이버가 없거나 고장 난
+노트북 등) 같은 빌드를 CPU로 실행하고 그 이유를 기록합니다(`ilf status`에서 확인). 나중에 **보관함 → 모델 실행 장치**에서
+빌드를 바꿀 수 있습니다.
 
 ## 앱
 

@@ -115,6 +115,7 @@ Progress goes to stderr only on a terminal, so stdout stays clean JSON.
   "data_dir": "/home/you/.local/share/im-looking-for",
   "runtime": "llama-b11461-bin-ubuntu-x64.tar.gz",
   "backend": "cpu",
+  "gpu_failed": null,
   "backends": ["cpu", "vulkan"],
   "missing_models": [],
   "download_bytes": 0,

@@ -16,6 +16,9 @@ class Config:
     excluded_folders: list[str] = field(default_factory=list)      # folder names or full paths
     excluded_extensions: list[str] = field(default_factory=list)   # "heic", "txt", …
     backend: str | None = None                                     # llama.cpp build: cpu | vulkan | metal
+    # Why the GPU was given up on (it failed to start or died) and the processor is used instead; None = use the GPU.
+    # Choosing a backend again (`ilf setup`, Settings) clears it, so the GPU gets another try.
+    gpu_failed: str | None = None
 
     @classmethod
     def load(cls) -> Config:

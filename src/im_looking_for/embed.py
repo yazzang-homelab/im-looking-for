@@ -14,6 +14,8 @@ from typing import Protocol
 
 import numpy as np
 
+from .server import ServerUnavailable
+
 DIM = 768
 # What made the vectors. An index records it and is rebuilt when it changes.
 VECTOR_VERSION = "embeddinggemma-2-Q8_0@bfcd298/llama.cpp-b11461/mean"
@@ -51,6 +53,9 @@ class ServerEmbedder:
         matrix = np.asarray(rows, dtype=np.float32)
         if matrix.ndim != 2 or matrix.shape[1] != DIM:
             raise RuntimeError(f"expected {DIM}-dimensional vectors, got shape {matrix.shape}")
+        if not np.isfinite(matrix).all() or not np.abs(matrix).sum(axis=-1).all():
+            # Every input would come back like this: a broken GPU driver, not a bad file.
+            raise ServerUnavailable("llama-server returned empty or non-numeric vectors")
         return normalize(matrix)
 
     def texts(self, prompts: Sequence[str]) -> np.ndarray:

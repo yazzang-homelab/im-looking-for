@@ -51,7 +51,7 @@ class App(Agent):
         self.setup_error: str | None = None
 
     def start_setup(self, backend: str | None) -> bool:
-        if self.setup_thread and self.setup_thread.is_alive():
+        if self.setup_thread and self.setup_thread.is_alive() or self.indexing():
             return False
         self.setup_error = None
         self.setup_progress = {}
@@ -63,9 +63,11 @@ class App(Agent):
             try:
                 config = self.engine.config
                 chosen = backend or config.backend or assets.default_backend()
-                assets.install(chosen, progress)
+                assets.install(chosen, progress, before_replace=self.engine.stop_server)
                 config.backend = chosen
+                config.gpu_failed = None
                 config.save()
+                self.warm()
             except Exception as e:  # shown on the page
                 self.setup_error = f"{type(e).__name__}: {e}"
 

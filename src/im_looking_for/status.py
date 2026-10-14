@@ -18,7 +18,8 @@ def describe(config: Config | None = None, store: Store | None = None) -> dict:
         "ready": assets.ready(),
         "data_dir": str(paths.data_dir()),
         "runtime": assets.installed_runtime(),
-        "backend": config.backend,
+        "backend": assets.installed_backend() or config.backend,
+        "gpu_failed": config.gpu_failed,  # why the GPU build runs on the processor; None when it doesn't
         "backends": assets.backends(),
         "missing_models": [m.name for m in missing],
         "download_bytes": sum(m.size for m in missing),

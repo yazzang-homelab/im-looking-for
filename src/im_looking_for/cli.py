@@ -70,6 +70,7 @@ def cmd_setup(args) -> int:
         print(f"llama.cpp {assets.LLAMA_TAG} ({backend}) and EmbeddingGemma 2 (Q8_0, 865 MB)")
     done = assets.install(backend, _Bar(not args.json).download)
     config.backend = backend
+    config.gpu_failed = None
     config.save()
     report = {**done, "ready": assets.ready()}
     if args.json:
@@ -173,6 +174,9 @@ def cmd_status(args) -> int:
     print(f"im-looking-for {report['version']}")
     print(f"Data folder: {report['data_dir']}")
     print(f"llama.cpp:   {report['runtime'] or 'not installed'}")
+    if report["gpu_failed"]:
+        print(f"             running on the processor; the GPU failed ({report['gpu_failed']}). "
+              "`ilf setup --backend <name>` tries again.")
     print("Model:       " + ("installed" if not report["missing_models"]
                              else "missing " + ", ".join(report["missing_models"])))
     print("Folders:     " + (", ".join(report["folders"]) or "none"))

@@ -232,6 +232,12 @@ pre.snippet { background: var(--panel2); border-radius: 10px; padding: 12px; mar
 ilf -k image a dog on the beach
 ilf status --json</pre>
     </div>
+    <div class="section"><h3 data-t="engine">Model runs on</h3>
+      <div class="choice" id="backends"></div>
+      <div id="engineinfo" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="switchbackend" data-t="switchBackend">Switch</button></div>
+      <p class="note" data-t="engineNote">Switching downloads the other llama.cpp build (20–35 MB). Searching pauses for a moment while it swaps.</p>
+    </div>
     <div class="section"><h3 data-t="about">About</h3>
       <p class="note" id="about"></p>
     </div>
@@ -274,6 +280,10 @@ const T = {
     indexNote: "Unchanged files are skipped, so updating is quick. Searching works while it reads.",
     agents: "For AI agents", agentsNote: "Let Claude, Codex, Cursor or any MCP client search these files. Add this to its MCP settings:",
     copy: "Copy", copied: "Copied", cliNote: "Or from a terminal or script:", about: "About",
+    engine: "Model runs on", switchBackend: "Switch",
+    engineNote: "Switching downloads the other llama.cpp build (20–35 MB). Searching pauses for a moment while it swaps.",
+    gpuFailed: r => `The GPU didn't work here, so the model runs on the CPU (${r}). Switch to the CPU build, or choose the GPU again to retry.`,
+    switching: "Switching…", busyIndexing: "Wait until reading finishes.",
     chooseFolder: "Choose a folder", pick: "Search this folder", noFolders: "No folders yet.",
     remove: "Remove", files: "files", vectors: "passages", unreadable: "unreadable",
     reading: (d, t) => `Reading ${d} of ${t}`, readingShort: (d, t) => `Reading ${d}/${t}`,
@@ -304,6 +314,10 @@ const T = {
     indexNote: "바뀌지 않은 파일은 건너뛰므로 갱신은 빠릅니다. 읽는 동안에도 검색할 수 있습니다.",
     agents: "AI 에이전트 연결", agentsNote: "Claude, Codex, Cursor 등 MCP 클라이언트가 이 파일들을 검색하게 하려면 MCP 설정에 다음을 넣으십시오.",
     copy: "복사", copied: "복사했습니다", cliNote: "터미널이나 스크립트에서는:", about: "정보",
+    engine: "모델 실행 장치", switchBackend: "바꾸기",
+    engineNote: "바꾸면 해당 llama.cpp 빌드(20–35MB)를 내려받습니다. 교체하는 동안 검색이 잠시 멈춥니다.",
+    gpuFailed: r => `이 컴퓨터에서 GPU가 동작하지 않아 CPU로 실행하고 있습니다(${r}). CPU 빌드로 바꾸거나, GPU를 다시 선택해 재시도하십시오.`,
+    switching: "바꾸는 중…", busyIndexing: "읽기가 끝난 뒤에 바꿀 수 있습니다.",
     chooseFolder: "폴더 선택", pick: "이 폴더 검색하기", noFolders: "아직 폴더가 없습니다.",
     remove: "빼기", files: "파일", vectors: "구간", unreadable: "읽기 실패",
     reading: (d, t) => `${t}개 중 ${d}개 읽는 중`, readingShort: (d, t) => `읽는 중 ${d}/${t}`,
@@ -497,8 +511,27 @@ function renderStatus() {
   $("#reindex").disabled = s.indexing || !s.ready || !s.folders.length;
   $("#stopindex").hidden = !s.indexing;
   $("#mcpsnippet").textContent = mcpJson(s);
+  renderEngine(s);
   $("#about").textContent = `im-looking-for ${s.version} · EmbeddingGemma 2 + llama.cpp (${s.runtime || "—"}) · ${s.data_dir}`;
 }
+function renderEngine(s) {
+  const running = s.setup.running, picked = document.querySelector('input[name="lib-backend"]:checked')?.value;
+  const chosen = picked || s.backend || s.setup.default_backend;
+  $("#backends").innerHTML = s.backends.map(b => `<label><input type="radio" name="lib-backend" value="${b}"
+    ${b === chosen ? "checked" : ""} ${running || s.indexing ? "disabled" : ""}> ${esc(t(b))}</label>`).join("");
+  const sp = s.setup.progress || {};
+  $("#engineinfo").innerHTML = s.setup.error ? `<div class="err">${esc(s.setup.error)}</div>`
+    : running ? `<div class="track"><i style="width:${sp.total ? sp.have / sp.total * 100 : 0}%"></i></div><small>${esc(t("switching"))}</small>`
+    : s.gpu_failed ? `<p class="note">${esc(t("gpuFailed", s.gpu_failed))}</p>`
+    : s.indexing ? `<p class="note">${esc(t("busyIndexing"))}</p>` : "";
+  $("#switchbackend").disabled = running || s.indexing || (chosen === s.backend && !s.gpu_failed);
+}
+$("#backends").onchange = () => renderEngine(status);
+$("#switchbackend").onclick = async () => {
+  const b = document.querySelector('input[name="lib-backend"]:checked')?.value;
+  try { await api("/api/setup", {backend: b}); } catch (e) { toast(e.message); }
+  status = await api("/api/status"); renderStatus();
+};
 function progressHtml(s) {
   const p = s.progress;
   if (s.index_error) return `<div class="err">${esc(s.index_error)}</div>`;

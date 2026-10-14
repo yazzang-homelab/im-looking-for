@@ -43,7 +43,9 @@ Prefer no Python? Standalone builds for Windows, macOS and Linux are produced by
 The first run downloads llama.cpp (12–35 MB) and the model (865 MB) once, pinned to exact versions and checked by
 SHA-256. It picks the llama.cpp build for your computer: **Metal** on Apple Silicon, **Vulkan** on Windows (any recent
 NVIDIA/AMD/Intel GPU), the **CPU** on Linux and Intel Macs; Linux with a GPU can choose Vulkan in the setup screen or
-with `ilf setup --backend vulkan` (needs `libvulkan1`).
+with `ilf setup --backend vulkan` (needs `libvulkan1`). If the GPU build can't start or crashes (a laptop
+without a working GPU driver), it runs on the processor instead and remembers why (`ilf status`); **Library → Model runs
+on** switches builds later.
 
 ## The app
 
