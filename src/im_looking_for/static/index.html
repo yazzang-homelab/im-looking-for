@@ -10,6 +10,9 @@
   --faint: #6b7280; --accent: #ffb547; --accent-ink: #1b1300; --good: #4ade80; --bad: #f87171;
   --radius: 14px; --shadow: 0 10px 40px rgba(0,0,0,.45);
   --font: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+  /* Paths: Korean Windows resolves system-ui to Malgun Gothic, which draws the backslash as a won sign (C:₩Users).
+     Segoe UI first keeps "\" for the ASCII part; Hangul still falls back. Absent outside Windows, so nothing changes there. */
+  --path-font: "Segoe UI", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
 }
 @media (prefers-color-scheme: light) {
   :root { --bg: #f6f5f2; --panel: #ffffff; --panel2: #f0eee9; --line: #e2dfd8; --text: #1d1b16; --dim: #5d5a52;
@@ -96,6 +99,7 @@ main.with-preview aside.preview { display: block; }
 .preview .body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .preview h2 { margin: 0; font-size: 17px; word-break: break-all; }
 .preview .path { color: var(--faint); font-size: 12.5px; word-break: break-all; }
+.preview .path, .folder span, #chosen, #about { font-family: var(--path-font); }
 .preview .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .passage { background: var(--panel2); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; color: var(--dim);
   white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; }

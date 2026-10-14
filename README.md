@@ -147,8 +147,12 @@ build and reading settings made its vectors and starts over when they change, so
 
 Measured on a 6-core Intel i5-9500 with the CPU build, while the machine was busy with other work: a picture takes
 ~7 s, a 1,300-character stretch of text ~2 s, a 30-second sound window ~1.3 s; a search 0.1–3 s once the model is
-loaded (the app loads it at start). A GPU build is much faster. The first pass over a big folder is slow; after that
-only new and changed files are read.
+loaded (the app loads it at start). The first pass over a big folder is slow; after that only new and changed files
+are read.
+
+With a GPU it's a different picture. On Windows 11 with an AMD Radeon RX 9070 XT (default Vulkan build), `ilf setup`
+finished in 34 s including both downloads, the test folder below (15 files: 6 photos, 4 documents, a PDF, 3 voice
+memos, a video) was read in 10 s, and its 14 test queries ran in 3 s together, with the same scores as on Linux.
 
 `scripts/make_testbed.py` builds a small mixed folder (Wikimedia Commons photos, a Korean lease as PDF, notes, a thesis
 as .docx, spoken memos, a video) and `scripts/eval.py scripts/testbed_eval.json` scores 14 English and Korean queries
@@ -172,7 +176,8 @@ for the layout and the rules for changing it.
 
 ## Limits
 
-- Verified by hand on Linux only so far; Windows and macOS are covered by CI.
+- Verified by hand on Linux and on Windows 11 (pipx install, setup, indexing, CLI, MCP, the app in Edge, the
+  standalone build); macOS is covered by CI only.
 - HEIC/HEIF photos aren't read yet (Pillow needs a plugin).
 - Text inside photos and screenshots is "seen" by the model's vision, not OCR'd, so exact-word search doesn't reach it.
 - Code search isn't implemented.
