@@ -33,14 +33,20 @@ Google DeepMind의 [EmbeddingGemma 2](https://huggingface.co/google/embeddinggem
 
 ## 설치
 
-Python 3.10 이상이 필요합니다. 이 저장소를 내려받은 뒤 다음을 실행하십시오.
+Python 3.10 이상이 필요합니다. 다음 중 하나를 실행하십시오(git은 필요 없습니다).
 
 ```sh
-pipx install ./im-looking-for      # 또는 uv tool install ./im-looking-for · pip install ./im-looking-for
-ilf                                # 앱이 열리고, 처음이면 설정을 안내합니다
+uv tool install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads/main.zip
+pipx install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads/main.zip
+pip install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads/main.zip
 ```
 
-Python 없이 쓰려면 릴리스 워크플로가 만드는 Windows·macOS·Linux 단독 실행본을 Releases에서 받으십시오.
+그다음 `ilf`를 실행하면 앱이 열리고, 처음이면 설정을 안내합니다. Windows에서 `pip install` 뒤 `ilf`를 찾지 못하면
+`python -m im_looking_for`로 실행하거나, `ilf`를 PATH에 올려 주는 `uv`/`pipx`로 설치하십시오(처음 한 번
+`uv tool update-shell` 또는 `pipx ensurepath` 실행 후 새 터미널). 저장소를 내려받았다면 그 폴더에서 `pipx install .`입니다.
+
+Python 없이 쓰려면 [Releases](https://github.com/yazzang-homelab/im-looking-for/releases)에서 Windows·macOS·Linux용
+단독 실행본을 받아 압축을 풀고 `ilf`를 실행하십시오.
 
 처음 한 번 llama.cpp(12~35MB)와 모델(865MB)을 내려받습니다. 버전을 고정하고 SHA-256으로 검증합니다. 컴퓨터에
 맞는 llama.cpp를 자동으로 고릅니다. Apple Silicon은 **Metal**, Windows는 **Vulkan**(최근 NVIDIA·AMD·Intel GPU),

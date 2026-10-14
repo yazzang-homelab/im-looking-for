@@ -33,14 +33,20 @@ languages, run by [llama.cpp](https://github.com/ggml-org/llama.cpp). It's a cro
 
 ## Install
 
-Python 3.10 or newer, from a clone of this repository:
+Python 3.10 or newer. Any one of these (no git needed):
 
 ```sh
-pipx install ./im-looking-for      # or: uv tool install ./im-looking-for   ·   pip install ./im-looking-for
-ilf                                # opens the app; the first run walks you through setup
+uv tool install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads/main.zip
+pipx install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads/main.zip
+pip install https://github.com/yazzang-homelab/im-looking-for/archive/refs/heads/main.zip
 ```
 
-Prefer no Python? Standalone builds for Windows, macOS and Linux are produced by the release workflow (see Releases).
+Then run `ilf`: it opens the app, and the first run walks you through setup. On Windows, if `ilf` isn't found after
+`pip install`, run `python -m im_looking_for`, or install with `uv`/`pipx`, which put `ilf` on the PATH
+(`uv tool update-shell` / `pipx ensurepath` once, then open a new terminal). From a clone: `pipx install .`.
+
+Prefer no Python? Download the standalone build for Windows, macOS or Linux from
+[Releases](https://github.com/yazzang-homelab/im-looking-for/releases), unzip it and run `ilf`.
 
 The first run downloads llama.cpp (12–35 MB) and the model (865 MB) once, pinned to exact versions and checked by
 SHA-256. It picks the llama.cpp build for your computer: **Metal** on Apple Silicon, **Vulkan** on Windows (any recent
